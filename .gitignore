@@ -1,0 +1,4 @@
+#ignore build folder, .devcontainer folder,  .vscode folder 
+build/
+.devcontainer/
+.vscode/
