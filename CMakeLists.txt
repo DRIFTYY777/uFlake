@@ -6,6 +6,7 @@ cmake_minimum_required(VERSION 3.16)
 set(EXTRA_COMPONENT_DIRS 
     "uFlakeKernal"
     "S3ZERO/uFlake"
+    "S3ZERO/uFlakeHAL"
 )
 
 # Include ESP-IDF build system

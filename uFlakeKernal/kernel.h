@@ -13,7 +13,10 @@ extern "C"
 {
 #endif
 
-    // Kernel return codes
+//  Mark as defined BEFORE the typedef
+#define UFLAKE_RESULT_T_DEFINED
+
+    // Kernel return codes (define BEFORE includes)
     typedef enum
     {
         UFLAKE_OK = 0,
@@ -24,11 +27,11 @@ extern "C"
         UFLAKE_ERROR_NOT_FOUND = -5
     } uflake_result_t;
 
-    // Forward declarations
+    // Forward declarations (BEFORE includes to break circular deps)
     typedef struct uflake_process_t uflake_process_t;
     typedef struct uflake_thread_t uflake_thread_t;
 
-// Kernel subsystem includes
+//  Move subsystem includes AFTER forward declarations
 #include "memory/memory_manager.h"
 #include "scheduler/scheduler.h"
 #include "sync/synchronization.h"
@@ -73,6 +76,12 @@ extern "C"
     uflake_result_t uflake_kernel_shutdown(void);
     kernel_state_t uflake_kernel_get_state(void);
     uint32_t uflake_kernel_get_tick_count(void);
+
+    // ISR context detection (CRITICAL for hardware interrupts)
+    static inline bool uflake_kernel_is_in_isr(void)
+    {
+        return xPortInIsrContext() != 0;
+    }
 
 #ifdef __cplusplus
 }

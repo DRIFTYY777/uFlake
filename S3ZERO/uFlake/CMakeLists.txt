@@ -21,6 +21,7 @@ idf_component_register(
         newlib
         pthread
         uFlakeKernal
+        uFlakeHAL  
         
     PRIV_REQUIRES
         esp_pm

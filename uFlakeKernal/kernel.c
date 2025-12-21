@@ -28,7 +28,7 @@ static void kernel_task(void *pvParameters)
         // Process events
         uflake_event_process();
 
-        // Check watchdog
+        // Always check watchdog
         uflake_watchdog_feed();
 
         // Check for panic conditions
