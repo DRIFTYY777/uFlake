@@ -1,0 +1,24 @@
+# ESP-IDF Partition Table for uFlake OS
+# Name,      Type, SubType,  Offset,   Size,     Flags
+# Bootloader partitions
+nvs,         data, nvs,      0x9000,   24K,
+otadata,     data, ota,      0xf000,   8K,
+phy_init,    data, phy,      0x11000,  4K,
+
+# Dual OTA partitions for firmware updates
+ota_0,       app,  ota_0,    0x20000,  1536K,
+ota_1,       app,  ota_1,    0x1A0000, 1536K,
+
+# System storage
+system,      data, fat,      0x320000, 256K,     # System config, logs
+apps,        data, fat,      0x360000, 1024K,    # Installed apps (.elf files)
+assets,      data, fat,      0x460000, 512K,     # App assets, icons, fonts
+
+# WiFi/BLE config
+nvs_wifi,    data, nvs,      0x4E0000, 16K,
+
+# User data storage
+userdata,    data, fat,      0x4E4000, 1024K,    # User files, saves
+
+# Optional: Crash logs
+coredump,    data, coredump, 0x5E4000, 64K,

@@ -1,11 +1,10 @@
 #include "uI2c.h"
-#include "kernel.h"
 #include "esp_log.h"
 #include <string.h>
 
 static const char *TAG = "UI2C";
 
-// I2C bus configuration structure
+// I2C bus configuration structure (updated for new API)
 typedef struct i2c_bus_config
 {
     i2c_port_t port;
@@ -14,14 +13,16 @@ typedef struct i2c_bus_config
     uint32_t freq_hz;
     bool is_initialized;
     uflake_mutex_t *mutex;
+    i2c_master_bus_handle_t bus_handle;
     struct i2c_device_node *device_list;
 } i2c_bus_config_t;
 
-// I2C device node for linked list
+// I2C device node for linked list (updated for new API)
 typedef struct i2c_device_node
 {
     uint8_t device_address;
     uint32_t ref_count;
+    i2c_master_dev_handle_t dev_handle;
     struct i2c_device_node *next;
 } i2c_device_node_t;
 
@@ -68,6 +69,21 @@ static esp_err_t add_device_to_list(i2c_bus_config_t *bus, uint8_t device_addr)
         return ESP_ERR_NO_MEM;
     }
 
+    // New API: Create device handle
+    i2c_device_config_t dev_cfg = {
+        .dev_addr_length = I2C_ADDR_BIT_LEN_7,
+        .device_address = device_addr,
+        .scl_speed_hz = bus->freq_hz,
+    };
+
+    esp_err_t ret = i2c_master_bus_add_device(bus->bus_handle, &dev_cfg, &node->dev_handle);
+    if (ret != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Failed to add device 0x%02X: %s", device_addr, esp_err_to_name(ret));
+        uflake_free(node);
+        return ret;
+    }
+
     node->device_address = device_addr;
     node->ref_count = 1;
     node->next = bus->device_list;
@@ -90,6 +106,9 @@ static esp_err_t remove_device_from_list(i2c_bus_config_t *bus, uint8_t device_a
 
             if (current->ref_count == 0)
             {
+                //  New API: Remove device handle
+                i2c_master_bus_rm_device(current->dev_handle);
+
                 // Remove from list
                 if (prev)
                 {
@@ -117,57 +136,47 @@ static esp_err_t remove_device_from_list(i2c_bus_config_t *bus, uint8_t device_a
     return ESP_ERR_NOT_FOUND;
 }
 
-// ============================================================================
-// PUBLIC API IMPLEMENTATION
-// ============================================================================
-
-bool i2c_bus_manager_init(i2c_port_t port, gpio_num_t sda_pin, gpio_num_t scl_pin, uint32_t freq_hz)
+uflake_result_t i2c_bus_manager_init(i2c_port_t port, gpio_num_t sda_pin, gpio_num_t scl_pin, uint32_t freq_hz)
 {
     if (port >= I2C_NUM_MAX)
     {
         ESP_LOGE(TAG, "Invalid I2C port: %d", port);
-        return false;
+        return UFLAKE_ERROR_INVALID_PARAM;
     }
 
     if (u_i2c_buses[port].is_initialized)
     {
         ESP_LOGW(TAG, "I2C port %d already initialized", port);
-        return true;
+        return UFLAKE_OK;
     }
 
     // Create mutex for this bus
     if (uflake_mutex_create(&u_i2c_buses[port].mutex) != UFLAKE_OK)
     {
         ESP_LOGE(TAG, "Failed to create mutex for I2C port %d", port);
-        return false;
+        return UFLAKE_ERROR_MEMORY;
     }
 
-    // Configure I2C master
-    i2c_config_t conf = {
-        .mode = I2C_MODE_MASTER,
+    //  New API: Configure master bus
+    i2c_master_bus_config_t bus_config = {
+        .i2c_port = port,
         .sda_io_num = sda_pin,
         .scl_io_num = scl_pin,
-        .sda_pullup_en = GPIO_PULLUP_ENABLE,
-        .scl_pullup_en = GPIO_PULLUP_ENABLE,
-        .master = {
-            .clk_speed = freq_hz,
+        .clk_source = I2C_CLK_SRC_DEFAULT,
+        .glitch_ignore_cnt = 7,
+        .intr_priority = 0, //  Auto-select priority
+        .flags = {
+            .enable_internal_pullup = true,
         },
     };
 
-    esp_err_t err = i2c_param_config(port, &conf);
+    //  New API: Create bus
+    esp_err_t err = i2c_new_master_bus(&bus_config, &u_i2c_buses[port].bus_handle);
     if (err != ESP_OK)
     {
-        ESP_LOGE(TAG, "I2C param config failed: %s", esp_err_to_name(err));
+        ESP_LOGE(TAG, "I2C bus init failed: %s", esp_err_to_name(err));
         uflake_mutex_destroy(u_i2c_buses[port].mutex);
-        return false;
-    }
-
-    err = i2c_driver_install(port, I2C_MODE_MASTER, 0, 0, 0);
-    if (err != ESP_OK)
-    {
-        ESP_LOGE(TAG, "I2C driver install failed: %s", esp_err_to_name(err));
-        uflake_mutex_destroy(u_i2c_buses[port].mutex);
-        return false;
+        return UFLAKE_ERROR;
     }
 
     // Save configuration
@@ -181,7 +190,7 @@ bool i2c_bus_manager_init(i2c_port_t port, gpio_num_t sda_pin, gpio_num_t scl_pi
     ESP_LOGI(TAG, "I2C bus %d initialized: SDA=%d, SCL=%d, Freq=%d Hz",
              port, sda_pin, scl_pin, (int)freq_hz);
 
-    return true;
+    return UFLAKE_OK;
 }
 
 esp_err_t i2c_bus_manager_deinit(i2c_port_t port)
@@ -191,7 +200,6 @@ esp_err_t i2c_bus_manager_deinit(i2c_port_t port)
         return ESP_ERR_INVALID_STATE;
     }
 
-    // Lock bus during deinitialization
     uflake_mutex_lock(u_i2c_buses[port].mutex, UINT32_MAX);
 
     // Free all device nodes
@@ -199,12 +207,13 @@ esp_err_t i2c_bus_manager_deinit(i2c_port_t port)
     while (current)
     {
         i2c_device_node_t *next = current->next;
+        i2c_master_bus_rm_device(current->dev_handle); //  New API
         uflake_free(current);
         current = next;
     }
 
-    // Uninstall driver
-    esp_err_t err = i2c_driver_delete(port);
+    //  New API: Delete bus
+    esp_err_t err = i2c_del_master_bus(u_i2c_buses[port].bus_handle);
 
     uflake_mutex_unlock(u_i2c_buses[port].mutex);
     uflake_mutex_destroy(u_i2c_buses[port].mutex);
@@ -268,27 +277,22 @@ esp_err_t i2c_bus_manager_scan(i2c_port_t port, uint8_t *found_devices,
     *found_count = 0;
     ESP_LOGI(TAG, "Scanning I2C bus %d...", port);
 
-    for (uint8_t addr = 0x08; addr < 0x78; addr++)
+    // ✅ New API: Use i2c_master_probe
+    for (uint16_t addr = 0x08; addr < 0x78; addr++)
     {
-        i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-        i2c_master_start(cmd);
-        i2c_master_write_byte(cmd, (addr << 1) | I2C_MASTER_WRITE, true);
-        i2c_master_stop(cmd);
-
-        esp_err_t ret = i2c_master_cmd_begin(port, cmd, pdMS_TO_TICKS(50));
-        i2c_cmd_link_delete(cmd);
+        esp_err_t ret = i2c_master_probe(u_i2c_buses[port].bus_handle, addr, 50);
 
         if (ret == ESP_OK)
         {
             if (*found_count < max_devices)
             {
-                found_devices[*found_count] = addr;
+                found_devices[*found_count] = (uint8_t)addr;
                 (*found_count)++;
                 ESP_LOGI(TAG, "Found device at 0x%02X", addr);
             }
         }
 
-        vTaskDelay(pdMS_TO_TICKS(1)); // Small delay between probes
+        vTaskDelay(pdMS_TO_TICKS(1));
     }
 
     uflake_mutex_unlock(u_i2c_buses[port].mutex);
@@ -298,7 +302,7 @@ esp_err_t i2c_bus_manager_scan(i2c_port_t port, uint8_t *found_devices,
 }
 
 // ============================================================================
-// I2C READ/WRITE OPERATIONS
+// I2C READ/WRITE OPERATIONS (New API)
 // ============================================================================
 
 esp_err_t i2c_manager_write(i2c_port_t port, uint8_t device_addr,
@@ -316,14 +320,17 @@ esp_err_t i2c_manager_write(i2c_port_t port, uint8_t device_addr,
 
     uflake_mutex_lock(u_i2c_buses[port].mutex, UINT32_MAX);
 
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (device_addr << 1) | I2C_MASTER_WRITE, true);
-    i2c_master_write(cmd, write_buffer, write_size, true);
-    i2c_master_stop(cmd);
+    // Find device handle
+    i2c_device_node_t *dev_node = find_device(&u_i2c_buses[port], device_addr);
+    if (!dev_node)
+    {
+        uflake_mutex_unlock(u_i2c_buses[port].mutex);
+        ESP_LOGE(TAG, "Device 0x%02X not registered", device_addr);
+        return ESP_ERR_NOT_FOUND;
+    }
 
-    esp_err_t ret = i2c_master_cmd_begin(port, cmd, pdMS_TO_TICKS(1000));
-    i2c_cmd_link_delete(cmd);
+    // ✅ New API: i2c_master_transmit
+    esp_err_t ret = i2c_master_transmit(dev_node->dev_handle, write_buffer, write_size, 1000);
 
     uflake_mutex_unlock(u_i2c_buses[port].mutex);
 
@@ -350,20 +357,15 @@ esp_err_t i2c_manager_read(i2c_port_t port, uint8_t device_addr,
 
     uflake_mutex_lock(u_i2c_buses[port].mutex, UINT32_MAX);
 
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (device_addr << 1) | I2C_MASTER_READ, true);
-
-    if (read_size > 1)
+    i2c_device_node_t *dev_node = find_device(&u_i2c_buses[port], device_addr);
+    if (!dev_node)
     {
-        i2c_master_read(cmd, read_buffer, read_size - 1, I2C_MASTER_ACK);
+        uflake_mutex_unlock(u_i2c_buses[port].mutex);
+        return ESP_ERR_NOT_FOUND;
     }
-    i2c_master_read_byte(cmd, read_buffer + read_size - 1, I2C_MASTER_NACK);
 
-    i2c_master_stop(cmd);
-
-    esp_err_t ret = i2c_master_cmd_begin(port, cmd, pdMS_TO_TICKS(1000));
-    i2c_cmd_link_delete(cmd);
+    // ✅ New API: i2c_master_receive
+    esp_err_t ret = i2c_master_receive(dev_node->dev_handle, read_buffer, read_size, 1000);
 
     uflake_mutex_unlock(u_i2c_buses[port].mutex);
 
@@ -391,27 +393,17 @@ esp_err_t i2c_manager_write_read(i2c_port_t port, uint8_t device_addr,
 
     uflake_mutex_lock(u_i2c_buses[port].mutex, UINT32_MAX);
 
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-
-    // Write phase
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (device_addr << 1) | I2C_MASTER_WRITE, true);
-    i2c_master_write(cmd, write_buffer, write_size, true);
-
-    // Read phase with repeated start
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (device_addr << 1) | I2C_MASTER_READ, true);
-
-    if (read_size > 1)
+    i2c_device_node_t *dev_node = find_device(&u_i2c_buses[port], device_addr);
+    if (!dev_node)
     {
-        i2c_master_read(cmd, read_buffer, read_size - 1, I2C_MASTER_ACK);
+        uflake_mutex_unlock(u_i2c_buses[port].mutex);
+        return ESP_ERR_NOT_FOUND;
     }
-    i2c_master_read_byte(cmd, read_buffer + read_size - 1, I2C_MASTER_NACK);
 
-    i2c_master_stop(cmd);
-
-    esp_err_t ret = i2c_master_cmd_begin(port, cmd, pdMS_TO_TICKS(1000));
-    i2c_cmd_link_delete(cmd);
+    // ✅ New API: i2c_master_transmit_receive
+    esp_err_t ret = i2c_master_transmit_receive(dev_node->dev_handle,
+                                                write_buffer, write_size,
+                                                read_buffer, read_size, 1000);
 
     uflake_mutex_unlock(u_i2c_buses[port].mutex);
 
@@ -468,7 +460,6 @@ esp_err_t i2c_manager_write_reg_bytes(i2c_port_t port, uint8_t device_addr,
         return ESP_ERR_INVALID_ARG;
     }
 
-    // Allocate temporary buffer for register + data
     uint8_t *write_buf = (uint8_t *)uflake_malloc(data_len + 1, UFLAKE_MEM_INTERNAL);
     if (!write_buf)
     {
