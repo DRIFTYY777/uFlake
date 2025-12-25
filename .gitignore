@@ -2,3 +2,4 @@
 build/
 .devcontainer/
 .vscode/
+.S3ZERO/boot_screen
