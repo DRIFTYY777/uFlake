@@ -7,6 +7,8 @@ set(EXTRA_COMPONENT_DIRS
     "uFlakeKernal"
     "S3ZERO/uFlake"
     "S3ZERO/uFlakeHAL"
+    "uLibraries"
+    # "S3ZERO/boot_screen"
 )
 
 # Include ESP-IDF build system

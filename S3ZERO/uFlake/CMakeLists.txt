@@ -1,7 +1,7 @@
 idf_component_register(
     SRCS 
         "main.cpp"
-    
+
     INCLUDE_DIRS 
         "."
     
@@ -21,7 +21,12 @@ idf_component_register(
         newlib
         pthread
         uFlakeKernal
-        uFlakeHAL  
+        uFlakeHAL
+        uLibraries
+
+        # boot_screen
+
+
         
     PRIV_REQUIRES
         esp_pm

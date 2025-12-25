@@ -3,8 +3,7 @@
   "idf.espIdfPathWin": "c:\\Softwares\\esp_idf\\v6.0-dev\\esp-idf",
   "idf.pythonInstallPath": "c:\\Softwares\\esp_idf_tools\\tools\\idf-python\\3.11.2\\python.exe",
   "idf.openOcdConfigs": [
-    "interface/ftdi/esp32_devkitj_v1.cfg",
-    "target/esp32s3.cfg"
+    "board/esp32s3-builtin.cfg"
   ],
   "idf.toolsPathWin": "c:\\Softwares\\esp_idf_tools",
   "idf.customExtraVars": {
