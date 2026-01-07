@@ -552,4 +552,3 @@ esp_err_t uspi_get_device_count(spi_host_device_t host, uint8_t *count)
     *count = uspi_buses[host].device_count;
     return ESP_OK;
 }
-
