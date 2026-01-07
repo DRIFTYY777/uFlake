@@ -36,6 +36,7 @@ extern "C"
         USPI_DEVICE_FLASH,
         USPI_DEVICE_SD_CARD,
         USPI_DEVICE_SENSOR,
+        USPI_DEVICE_RADIO,
         USPI_DEVICE_CUSTOM
     } uspi_device_type_t;
 

@@ -5,12 +5,15 @@ idf_component_register(
     SRCS 
         "st7789/ST7789_driver.c"
         "pca9555/PCA9555.c"
-        # "sd_card/sd_card_driver.c"
+        "sdCard/sdCard.c"
+        "nrf24/nrf24.c"
     
     INCLUDE_DIRS 
+        "."
         "st7789"
         "pca9555"
-        # "sd_card"
+        "sdCard"
+        "nrf24"
     
     REQUIRES 
         driver
@@ -18,12 +21,15 @@ idf_component_register(
         log
         esp_common
         soc
+        fatfs 
         hal
         uFlakeHAL
-        
+        uFlakeKernal 
+
     PRIV_REQUIRES
         esp_hw_support
         esp_system
+        sdmmc
 )
 
 # Set compiler flags for hardware drivers

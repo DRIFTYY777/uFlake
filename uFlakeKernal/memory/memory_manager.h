@@ -36,6 +36,10 @@ extern "C"
     uflake_result_t uflake_memory_get_stats(uflake_mem_type_t type, uflake_mem_stats_t *stats);
     size_t uflake_memory_get_free_size(uflake_mem_type_t type);
 
+    // PSRAM/MMU utility functions
+    bool uflake_memory_is_psram_available(void);
+    void uflake_memory_print_stats(void);
+
 #ifdef __cplusplus
 }
 #endif

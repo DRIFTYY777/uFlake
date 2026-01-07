@@ -89,4 +89,3 @@
 
 #endif // _ST7789_REGS_H_
 
-// NOTE: This register list is compatible with new SPI/display init logic.

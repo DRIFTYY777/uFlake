@@ -1,14 +1,11 @@
 idf_component_register(
     SRCS 
-        "uI2c/uI2c.c"
-        "uSPI/uSPI.c"
-        "uNVS/uNVS.c" 
+        "src/uI2c.c"
+        "src/uSPI.c"
+        "src/uNVS.c" 
     
     INCLUDE_DIRS 
-        "."
-        "uI2c"
-        "uSPI"
-        "uNVS"  
+        "include"  
     
     REQUIRES 
         driver
