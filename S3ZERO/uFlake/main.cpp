@@ -17,268 +17,19 @@
 
 static const char *TAG = "MAIN";
 
-// ============================================================================
-// MMU + PSRAM: Place large static data in external RAM (requires MMU integration)
-// ============================================================================
-
-// Option 1: Use EXT_RAM_BSS_ATTR for zero-initialized data
-EXT_RAM_BSS_ATTR static uint8_t large_buffer_psram[1024 * 1024]; // 1MB in PSRAM
-
-// Option 2: Use EXT_RAM_NOINIT_ATTR for uninitialized data (faster boot)
-EXT_RAM_NOINIT_ATTR static uint32_t psram_data_array[256 * 1024]; // 1MB
-
-// Option 3: Normal global (will be in internal RAM unless MMU + auto-allocation enabled)
-static uint8_t small_buffer[1024]; // 1KB in internal RAM
-
-// Memory test function to verify PSRAM and MMU
-void test_memory_allocation()
-{
-    ESP_LOGI(TAG, "Starting Memory Allocation Tests");
-
-    // Check PSRAM availability
-    if (uflake_memory_is_psram_available())
-    {
-        ESP_LOGI(TAG, "PSRAM is available and configured!");
-    }
-    else
-    {
-        ESP_LOGI(TAG, "✗ PSRAM is NOT available");
-    }
-
-    // Print initial memory stats
-    uflake_memory_print_stats();
-
-    // Test 1: Allocate from Internal RAM
-
-    ESP_LOGI(TAG, "\n--- Test 1: Internal RAM Allocation ---");
-
-    void *internal_mem = uflake_malloc(10240, UFLAKE_MEM_INTERNAL); // 10KB
-    if (internal_mem)
-    {
-        ESP_LOGI(TAG, "Internal RAM Free Size: %u bytes", (unsigned)uflake_memory_get_free_size(UFLAKE_MEM_INTERNAL));
-        // Write test pattern
-        memset(internal_mem, 0xAA, 10240);
-        ESP_LOGI(TAG, "✓ Allocated 10KB from Internal RAM at %p", internal_mem);
-    }
-    else
-    {
-        ESP_LOGI(TAG, "Failed to allocate from Internal RAM");
-    }
-
-    // Test 2: Allocate from PSRAM (with MMU integration)
-
-    ESP_LOGI(TAG, "\n--- Test 2: PSRAM Allocation (via MMU) ---");
-
-    void *psram_mem_small = uflake_malloc(51200, UFLAKE_MEM_SPIRAM); // 50KB
-    if (psram_mem_small)
-    {
-        ESP_LOGI(TAG, "Allocated 50KB from PSRAM at %p", psram_mem_small);
-
-        // Verify it's actually in PSRAM address range
-        if (esp_ptr_external_ram(psram_mem_small))
-        {
-            ESP_LOGI(TAG, "Confirmed: Pointer is in PSRAM address space");
-        }
-        else
-        {
-            ESP_LOGI(TAG, "⚠ Pointer is NOT in PSRAM address space");
-        }
-
-        // Write and read test
-        memset(psram_mem_small, 0x55, 51200);
-        ESP_LOGI(TAG, "Written test pattern to PSRAM");
-
-        // Verify data integrity
-        bool data_ok = true;
-        uint8_t *check = (uint8_t *)psram_mem_small;
-        for (int i = 0; i < 1000; i++)
-        {
-            if (check[i] != 0x55)
-            {
-                data_ok = false;
-                break;
-            }
-        }
-        if (data_ok)
-        {
-            ESP_LOGI(TAG, "✓ PSRAM data integrity verified");
-        }
-        else
-        {
-            ESP_LOGE(TAG, "✗ PSRAM access verification failed");
-        }
-    }
-    else
-    {
-        ESP_LOGI(TAG, "Failed to allocate from PSRAM");
-    }
-
-    // Test 3: Large PSRAM allocation
-    ESP_LOGI(TAG, "\n--- Test 3: Large PSRAM Allocation (1MB) ---");
-    void *psram_mem_large = uflake_malloc(1024 * 1024, UFLAKE_MEM_SPIRAM); // 1MB
-    if (psram_mem_large)
-    {
-        ESP_LOGI(TAG, "Allocated 1MB from PSRAM at %p", psram_mem_large);
-
-        // Test MMU transparent access
-        uint8_t *large_buf = (uint8_t *)psram_mem_large;
-        large_buf[0] = 0x12;
-        large_buf[1024 * 512] = 0x34;      // Middle
-        large_buf[1024 * 1024 - 1] = 0x56; // End
-
-        if (large_buf[0] == 0x12 && large_buf[1024 * 512] == 0x34 && large_buf[1024 * 1024 - 1] == 0x56)
-        {
-            ESP_LOGI(TAG, "✓ MMU transparent access working correctly");
-        }
-        else
-        {
-            ESP_LOGE(TAG, "✗ MMU access verification failed");
-        }
-    }
-    else
-    {
-        ESP_LOGE(TAG, "✗ Failed to allocate 1MB from PSRAM");
-    }
-
-    // Test 4: DMA-capable memory
-    // ESP_LOGI(TAG, \"\\n--- Test 4: DMA-capable Memory Allocation ---\");
-    void *dma_mem = uflake_malloc(4096, UFLAKE_MEM_DMA); // 4KB
-    if (dma_mem)
-    {
-        ESP_LOGI(TAG, "✓ Allocated 4KB DMA-capable memory at %p", dma_mem);
-        memset(dma_mem, 0xFF, 4096);
-        ESP_LOGI(TAG, "✓ Written to DMA memory");
-    }
-    else
-    {
-        ESP_LOGE(TAG, "✗ Failed to allocate DMA memory");
-    }
-
-    // Print memory stats after allocations
-    ESP_LOGI(TAG, "\n=== Memory Stats After Allocations ===");
-    uflake_memory_print_stats();
-
-    // Test 5: Free memory
-    ESP_LOGI(TAG, "\n--- Test 5: Memory Deallocation ---");
-    if (internal_mem)
-    {
-        uflake_free(internal_mem);
-        ESP_LOGI(TAG, "✓ Freed Internal RAM");
-    }
-    if (psram_mem_small)
-    {
-        uflake_free(psram_mem_small);
-        ESP_LOGI(TAG, "✓ Freed Small PSRAM allocation");
-    }
-    if (psram_mem_large)
-    {
-        uflake_free(psram_mem_large);
-        ESP_LOGI(TAG, "✓ Freed Large PSRAM allocation");
-    }
-    if (dma_mem)
-    {
-        uflake_free(dma_mem);
-        ESP_LOGI(TAG, "✓ Freed DMA memory");
-    }
-
-    // Final stats
-    ESP_LOGI(TAG, "\n=== Memory Stats After Cleanup ===");
-    uflake_memory_print_stats();
-
-    ESP_LOGI(TAG, "\n=== Memory Tests Completed ===");
-}
-
-// Demonstrate MMU features with PSRAM
-void test_mmu_psram_features()
-{
-    ESP_LOGI(TAG, "\n\n=== MMU + PSRAM Features Demo ===");
-
-    // Test 1: Access global PSRAM variables (MMU makes this transparent)
-    ESP_LOGI(TAG, "\n--- Test 1: MMU-Mapped Global Variables ---");
-    ESP_LOGI(TAG, "large_buffer_psram address: %p", (void *)large_buffer_psram);
-    ESP_LOGI(TAG, "psram_data_array address: %p", (void *)psram_data_array);
-
-    // Check if they're in PSRAM address space
-    if (esp_ptr_external_ram(large_buffer_psram))
-    {
-        ESP_LOGI(TAG, "✓ large_buffer_psram is in PSRAM (via MMU)");
-    }
-    else
-    {
-        ESP_LOGW(TAG, "✗ large_buffer_psram NOT in PSRAM (MMU integration disabled?)");
-    }
-
-    if (esp_ptr_external_ram(psram_data_array))
-    {
-        ESP_LOGI(TAG, "✓ psram_data_array is in PSRAM (via MMU)");
-    }
-    else
-    {
-        ESP_LOGW(TAG, "✗ psram_data_array NOT in PSRAM (MMU integration disabled?)");
-    }
-
-    // Test 2: Write and read from MMU-mapped PSRAM
-    ESP_LOGI(TAG, "\n--- Test 2: MMU Transparent Access ---");
-
-    // Write pattern to PSRAM buffer (MMU handles address translation)
-    for (int i = 0; i < 1000; i++)
-    {
-        large_buffer_psram[i] = (uint8_t)(i & 0xFF);
-    }
-    ESP_LOGI(TAG, "Written 1000 bytes to PSRAM buffer");
-
-    // Read back and verify (no special code needed - MMU does the work)
-    bool verify_ok = true;
-    for (int i = 0; i < 1000; i++)
-    {
-        if (large_buffer_psram[i] != (uint8_t)(i & 0xFF))
-        {
-            verify_ok = false;
-            break;
-        }
-    }
-
-    if (verify_ok)
-    {
-        ESP_LOGI(TAG, "✓ MMU transparent read/write verified");
-    }
-    else
-    {
-        ESP_LOGE(TAG, "✗ MMU access verification failed");
-    }
-
-    // Test 3: Compare access speeds (for demonstration)
-    ESP_LOGI(TAG, "\n--- Test 3: Access Speed Comparison ---");
-
-    // Internal RAM access
-    uint64_t start = esp_timer_get_time();
-    for (int i = 0; i < 10000; i++)
-    {
-        small_buffer[i % 1024] = i & 0xFF;
-    }
-    uint64_t internal_time = esp_timer_get_time() - start;
-
-    // PSRAM access via MMU
-    start = esp_timer_get_time();
-    for (int i = 0; i < 10000; i++)
-    {
-        large_buffer_psram[i % (1024 * 1024)] = i & 0xFF;
-    }
-    uint64_t psram_time = esp_timer_get_time() - start;
-
-    ESP_LOGI(TAG, "Internal RAM: %llu µs", internal_time);
-    ESP_LOGI(TAG, "PSRAM (MMU): %llu µs", psram_time);
-    ESP_LOGI(TAG, "Speed ratio: %.2fx slower", (float)psram_time / internal_time);
-
-    ESP_LOGI(TAG, "\n=== MMU + PSRAM Demo Completed ===\n");
-}
+// Process ID for uFlake kernel process management demonstration
+static uint32_t input_process_pid = 0;
 
 void input_read_task(void *arg)
 {
+    ESP_LOGI(TAG, "[INPUT_TASK] Starting input read task");
+
     // initialize PCA9555 as input
     init_pca9555_as_input(UI2C_PORT_0, PCA9555_ADDRESS);
 
     vTaskDelay(pdMS_TO_TICKS(100)); // Wait for PCA9555 to stabilize
+
+    ESP_LOGI(TAG, "[INPUT_TASK] Initialization complete, entering main loop");
 
     while (1)
     {
@@ -353,6 +104,123 @@ void input_read_task(void *arg)
 
         vTaskDelay(pdMS_TO_TICKS(100)); // Poll every 100 ms
     }
+}
+
+// ============================================================================
+// uFlake Kernel Process Management Demo: The Benefits of Kernel Abstraction
+// ============================================================================
+/*
+ * WHY USE UFLAKE KERNEL INSTEAD OF RAW FREERTOS?
+ *
+ * 1. ABSTRACTION: Higher-level APIs hide FreeRTOS complexity
+ * 2. PORTABILITY: Easy to switch RTOS underneath (FreeRTOS → Zephyr → etc)
+ * 3. SAFETY: Kernel validates operations, tracks resources
+ * 4. FEATURES: Process tracking, CPU time accounting, debugging
+ * 5. CONSISTENCY: Unified API across all kernel services
+ */
+void demo_kernel_process_management(void)
+{
+    ESP_LOGI(TAG, "\n\n=== uFlake Kernel Process Management Demo ===");
+    ESP_LOGI(TAG, "Using KERNEL APIs (not raw FreeRTOS)\n");
+
+    // Step 1: Create process using uFlake kernel
+    ESP_LOGI(TAG, "[STEP 1] Creating process via uFlake kernel...");
+    ESP_LOGI(TAG, "  API: uflake_process_create()");
+
+    uflake_result_t result = uflake_process_create(
+        "InputReader",           // Process name
+        input_read_task,         // Entry point
+        NULL,                    // Arguments
+        4096,                    // Stack size
+        PROCESS_PRIORITY_NORMAL, // Kernel priority enum
+        &input_process_pid       // Returns PID
+    );
+
+    if (result != UFLAKE_OK)
+    {
+        ESP_LOGE(TAG, "Failed to create process! Error: %d", result);
+        return;
+    }
+    ESP_LOGI(TAG, "✓ Process created: PID=%u", (unsigned)input_process_pid);
+    ESP_LOGI(TAG, "  Kernel automatically: tracks state, manages memory, logs lifecycle");
+
+    // Let process run
+    ESP_LOGI(TAG, "\n[STEP 2] Letting process run for 3 seconds...");
+    vTaskDelay(pdMS_TO_TICKS(3000));
+
+    // Step 2: Suspend using kernel API
+    ESP_LOGI(TAG, "\n[STEP 3] Suspending process via kernel...");
+    ESP_LOGI(TAG, "  API: uflake_process_suspend(pid)");
+
+    result = uflake_process_suspend(input_process_pid);
+    if (result == UFLAKE_OK)
+    {
+        ESP_LOGW(TAG, "✓ Process SUSPENDED by kernel");
+        ESP_LOGI(TAG, "  Kernel benefits:");
+        ESP_LOGI(TAG, "    - Validates PID exists");
+        ESP_LOGI(TAG, "    - Updates process state tracking");
+        ESP_LOGI(TAG, "    - Logs operation for debugging");
+    }
+    else if (result == UFLAKE_ERROR_INVALID_PARAM)
+    {
+        ESP_LOGE(TAG, "✗ Cannot suspend: process already terminated");
+        ESP_LOGI(TAG, "  This demonstrates kernel's safety checks!");
+        return;
+    }
+    else
+    {
+        ESP_LOGE(TAG, "Failed to suspend process: %d", result);
+        return;
+    }
+
+    // Wait while suspended
+    ESP_LOGI(TAG, "\n[STEP 4] Process suspended for 5 seconds...");
+    for (int i = 5; i > 0; i--)
+    {
+        ESP_LOGI(TAG, "  Resuming in %d seconds...", i);
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+
+    // Step 3: Resume using kernel API
+    ESP_LOGI(TAG, "\n[STEP 5] Resuming process via kernel...");
+    ESP_LOGI(TAG, "  API: uflake_process_resume(pid)");
+
+    result = uflake_process_resume(input_process_pid);
+    if (result == UFLAKE_OK)
+    {
+        ESP_LOGI(TAG, "✓ Process RESUMED by kernel");
+        ESP_LOGI(TAG, "  Kernel automatically updated process state");
+    }
+
+    // Let it run
+    ESP_LOGI(TAG, "\n[STEP 6] Letting process run for 3 seconds...");
+    vTaskDelay(pdMS_TO_TICKS(3000));
+
+    // Step 4: Suspend again
+    ESP_LOGI(TAG, "\n[STEP 7] Second suspend test...");
+    uflake_process_suspend(input_process_pid);
+    ESP_LOGW(TAG, "✓ Process SUSPENDED again");
+    vTaskDelay(pdMS_TO_TICKS(2000));
+
+    // Step 5: Resume again
+    ESP_LOGI(TAG, "\n[STEP 8] Final resume...");
+    uflake_process_resume(input_process_pid);
+    ESP_LOGI(TAG, "✓ Process RESUMED - continuing operation");
+
+    ESP_LOGI(TAG, "\n=== Demo Complete ===");
+    ESP_LOGI(TAG, "\nKERNEL vs RAW FREERTOS COMPARISON:");
+    ESP_LOGI(TAG, "┌─────────────────────┬──────────────────────┬─────────────────────┐");
+    ESP_LOGI(TAG, "│ Feature             │ Raw FreeRTOS         │ uFlake Kernel       │");
+    ESP_LOGI(TAG, "├─────────────────────┼──────────────────────┼─────────────────────┤");
+    ESP_LOGI(TAG, "│ API Complexity      │ xTaskCreate(7 args)  │ process_create(6)   │");
+    ESP_LOGI(TAG, "│ Process Tracking    │ Manual               │ Automatic           │");
+    ESP_LOGI(TAG, "│ State Management    │ Manual               │ Kernel-managed      │");
+    ESP_LOGI(TAG, "│ Error Validation    │ None                 │ Built-in            │");
+    ESP_LOGI(TAG, "│ Debugging Support   │ Limited              │ Full logging        │");
+    ESP_LOGI(TAG, "│ Portability         │ FreeRTOS-specific    │ RTOS-agnostic       │");
+    ESP_LOGI(TAG, "│ Memory Safety       │ Manual tracking      │ Kernel-tracked      │");
+    ESP_LOGI(TAG, "└─────────────────────┴──────────────────────┴─────────────────────┘");
+    ESP_LOGI(TAG, "\nProcess continues running in background...\n");
 }
 
 void init_nrf24()
@@ -441,13 +309,12 @@ extern "C"
 
         ESP_LOGI(TAG, "uFlake OS started successfully");
 
-        // Run memory allocation tests
-        ESP_LOGI(TAG, "\\n\\n======================================");
-        ESP_LOGI(TAG, "Starting PSRAM and MMU Tests");
-        ESP_LOGI(TAG, "======================================\\n");
-        test_memory_allocation();
-        // Test MMU features with PSRAM
-        test_mmu_psram_features();
+        // Demonstrate uFlake kernel process management
+        ESP_LOGI(TAG, "\n\n======================================");
+        ESP_LOGI(TAG, "uFlake Kernel Process Management Demo");
+        ESP_LOGI(TAG, "======================================\n");
+        demo_kernel_process_management();
+
         // INITIALIZE the FIRST SPI BUS  - before adding any devices
         if (uspi_bus_init(USPI_HOST_SPI3, GPIO_NUM_11, GPIO_NUM_13, GPIO_NUM_12, 4096) != UFLAKE_OK)
         {

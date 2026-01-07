@@ -20,21 +20,32 @@ uflake_result_t uflake_scheduler_init(void)
     return UFLAKE_OK;
 }
 
+// Wrapper data to pass both process and entry point
+typedef struct
+{
+    uflake_process_t *process;
+    process_entry_t entry;
+    void *args;
+} process_wrapper_args_t;
+
 static void process_wrapper(void *args)
 {
-    uflake_process_t *process = (uflake_process_t *)args;
+    process_wrapper_args_t *wrapper_args = (process_wrapper_args_t *)args;
+    uflake_process_t *process = wrapper_args->process;
+    process_entry_t entry = wrapper_args->entry;
+    void *user_args = wrapper_args->args;
+
     ESP_LOGI(TAG, "Process %s (PID: %d) started", process->name, (int)process->pid);
+
+    // Free wrapper args now that we've extracted everything
+    uflake_free(wrapper_args);
 
     process->state = PROCESS_STATE_RUNNING;
 
-    // This would call the actual process entry point
-    // For now, just simulate some work
-    while (process->state == PROCESS_STATE_RUNNING)
-    {
-        process->cpu_time++;
-        vTaskDelay(pdMS_TO_TICKS(100));
-    }
+    // Call the actual user entry point (THIS WAS MISSING!)
+    entry(user_args);
 
+    // If entry point returns, mark as terminated
     process->state = PROCESS_STATE_TERMINATED;
     ESP_LOGI(TAG, "Process %s (PID: %d) terminated", process->name, (int)process->pid);
     vTaskDelete(NULL);
@@ -64,12 +75,24 @@ uflake_result_t uflake_process_create(const char *name, process_entry_t entry, v
     process->stack_size = stack_size;
     process->cpu_time = 0;
 
+    // Create wrapper args to pass both process and entry point
+    process_wrapper_args_t *wrapper_args = (process_wrapper_args_t *)uflake_malloc(sizeof(process_wrapper_args_t), UFLAKE_MEM_INTERNAL);
+    if (!wrapper_args)
+    {
+        uflake_free(process);
+        xSemaphoreGive(scheduler_mutex);
+        return UFLAKE_ERROR_MEMORY;
+    }
+    wrapper_args->process = process;
+    wrapper_args->entry = entry;
+    wrapper_args->args = args;
+
     // Create FreeRTOS task
     BaseType_t result = xTaskCreate(
         process_wrapper,
         process->name,
         stack_size / sizeof(StackType_t),
-        process,
+        wrapper_args, // Pass wrapper args, not just process
         priority + 1, // FreeRTOS priority offset
         &process->task_handle);
 
@@ -161,10 +184,19 @@ uflake_result_t uflake_process_suspend(uint32_t pid)
     {
         if (current->pid == pid)
         {
+            // Safety check: don't suspend terminated processes
+            if (current->state == PROCESS_STATE_TERMINATED)
+            {
+                ESP_LOGW(TAG, "Cannot suspend terminated process PID: %d", (int)pid);
+                xSemaphoreGive(scheduler_mutex);
+                return UFLAKE_ERROR_INVALID_PARAM;
+            }
+
             if (current->task_handle)
             {
                 vTaskSuspend(current->task_handle);
                 current->state = PROCESS_STATE_BLOCKED;
+                ESP_LOGI(TAG, "Suspended process %s (PID: %d)", current->name, (int)pid);
             }
             xSemaphoreGive(scheduler_mutex);
             return UFLAKE_OK;
@@ -173,6 +205,7 @@ uflake_result_t uflake_process_suspend(uint32_t pid)
     }
 
     xSemaphoreGive(scheduler_mutex);
+    ESP_LOGE(TAG, "Process PID: %d not found", (int)pid);
     return UFLAKE_ERROR_NOT_FOUND;
 }
 
@@ -185,10 +218,19 @@ uflake_result_t uflake_process_resume(uint32_t pid)
     {
         if (current->pid == pid)
         {
+            // Safety check: don't resume terminated processes
+            if (current->state == PROCESS_STATE_TERMINATED)
+            {
+                ESP_LOGW(TAG, "Cannot resume terminated process PID: %d", (int)pid);
+                xSemaphoreGive(scheduler_mutex);
+                return UFLAKE_ERROR_INVALID_PARAM;
+            }
+
             if (current->task_handle)
             {
                 vTaskResume(current->task_handle);
                 current->state = PROCESS_STATE_READY;
+                ESP_LOGI(TAG, "Resumed process %s (PID: %d)", current->name, (int)pid);
             }
             xSemaphoreGive(scheduler_mutex);
             return UFLAKE_OK;
@@ -197,6 +239,7 @@ uflake_result_t uflake_process_resume(uint32_t pid)
     }
 
     xSemaphoreGive(scheduler_mutex);
+    ESP_LOGE(TAG, "Process PID: %d not found", (int)pid);
     return UFLAKE_ERROR_NOT_FOUND;
 }
 
