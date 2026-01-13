@@ -8,6 +8,9 @@ set(EXTRA_COMPONENT_DIRS
     "S3ZERO/uFlake"
     "S3ZERO/uFlakeHAL"
     "uLibraries"
+    "uAppLoader"
+    "Apps/launcher"
+    "Apps/counter_app"
     # "S3ZERO/boot_screen"
 )
 

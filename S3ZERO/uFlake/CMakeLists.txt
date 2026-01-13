@@ -18,11 +18,12 @@ idf_component_register(
         soc
         hal
         esp_rom
-        newlib
         pthread
         uFlakeKernal
         uFlakeHAL
+        uAppLoader
         uLibraries
+        lvgl__lvgl
 
         # boot_screen
 

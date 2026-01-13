@@ -42,13 +42,14 @@ idf_component_register(
         soc
         hal
         esp_rom
-        newlib
         pthread
+        
         
     PRIV_REQUIRES
         esp_pm
         esp_mm
         bootloader_support
+        
 )
 
 # Set compiler flags for the kernel

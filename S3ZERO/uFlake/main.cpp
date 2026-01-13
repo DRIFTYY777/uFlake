@@ -10,6 +10,7 @@
 #include "uI2c.h"
 #include "uSPI.h"
 #include "unvs.h"
+#include "appLoader.h"
 
 #include "pca9555.h"
 #include "sdCard.h"
@@ -19,11 +20,6 @@ static const char *TAG = "MAIN";
 
 // Process ID for uFlake kernel process management demonstration
 static uint32_t input_process_pid = 0;
-
-// Event subscription IDs for demonstration
-static uint32_t system_event_sub_id = 0;
-static uint32_t memory_event_sub_id = 0;
-static uint32_t custom_event_sub_id = 0;
 
 void input_read_task(void *arg)
 {
@@ -111,313 +107,16 @@ void input_read_task(void *arg)
     }
 }
 
-// ============================================================================
-// uFlake Kernel Process Management Demo: The Benefits of Kernel Abstraction
-// ============================================================================
-/*
- * WHY USE UFLAKE KERNEL INSTEAD OF RAW FREERTOS?
- *
- * 1. ABSTRACTION: Higher-level APIs hide FreeRTOS complexity
- * 2. PORTABILITY: Easy to switch RTOS underneath (FreeRTOS → Zephyr → etc)
- * 3. SAFETY: Kernel validates operations, tracks resources
- * 4. FEATURES: Process tracking, CPU time accounting, debugging
- * 5. CONSISTENCY: Unified API across all kernel services
- */
-void demo_kernel_process_management(void)
-{
-    ESP_LOGI(TAG, "\n\n=== uFlake Kernel Process Management Demo ===");
-    ESP_LOGI(TAG, "Using KERNEL APIs (not raw FreeRTOS)\n");
-
-    // Step 1: Create process using uFlake kernel
-    ESP_LOGI(TAG, "[STEP 1] Creating process via uFlake kernel...");
-    ESP_LOGI(TAG, "  API: uflake_process_create()");
-
-    uflake_result_t result = uflake_process_create(
-        "InputReader",           // Process name
-        input_read_task,         // Entry point
-        NULL,                    // Arguments
-        4096,                    // Stack size
-        PROCESS_PRIORITY_NORMAL, // Kernel priority enum
-        &input_process_pid       // Returns PID
-    );
-
-    if (result != UFLAKE_OK)
-    {
-        ESP_LOGE(TAG, "Failed to create process! Error: %d", result);
-        return;
-    }
-    ESP_LOGI(TAG, "✓ Process created: PID=%u", (unsigned)input_process_pid);
-    ESP_LOGI(TAG, "  Kernel automatically: tracks state, manages memory, logs lifecycle");
-
-    // Let process run
-    ESP_LOGI(TAG, "\n[STEP 2] Letting process run for 3 seconds...");
-    vTaskDelay(pdMS_TO_TICKS(3000));
-
-    // Step 2: Suspend using kernel API
-    ESP_LOGI(TAG, "\n[STEP 3] Suspending process via kernel...");
-    ESP_LOGI(TAG, "  API: uflake_process_suspend(pid)");
-
-    result = uflake_process_suspend(input_process_pid);
-    if (result == UFLAKE_OK)
-    {
-        ESP_LOGW(TAG, "✓ Process SUSPENDED by kernel");
-        ESP_LOGI(TAG, "  Kernel benefits:");
-        ESP_LOGI(TAG, "    - Validates PID exists");
-        ESP_LOGI(TAG, "    - Updates process state tracking");
-        ESP_LOGI(TAG, "    - Logs operation for debugging");
-    }
-    else if (result == UFLAKE_ERROR_INVALID_PARAM)
-    {
-        ESP_LOGE(TAG, "✗ Cannot suspend: process already terminated");
-        ESP_LOGI(TAG, "  This demonstrates kernel's safety checks!");
-        return;
-    }
-    else
-    {
-        ESP_LOGE(TAG, "Failed to suspend process: %d", result);
-        return;
-    }
-
-    // Wait while suspended
-    ESP_LOGI(TAG, "\n[STEP 4] Process suspended for 5 seconds...");
-    for (int i = 5; i > 0; i--)
-    {
-        ESP_LOGI(TAG, "  Resuming in %d seconds...", i);
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    }
-
-    // Step 3: Resume using kernel API
-    ESP_LOGI(TAG, "\n[STEP 5] Resuming process via kernel...");
-    ESP_LOGI(TAG, "  API: uflake_process_resume(pid)");
-
-    result = uflake_process_resume(input_process_pid);
-    if (result == UFLAKE_OK)
-    {
-        ESP_LOGI(TAG, "✓ Process RESUMED by kernel");
-        ESP_LOGI(TAG, "  Kernel automatically updated process state");
-    }
-
-    // Let it run
-    ESP_LOGI(TAG, "\n[STEP 6] Letting process run for 3 seconds...");
-    vTaskDelay(pdMS_TO_TICKS(3000));
-
-    // Step 4: Suspend again
-    ESP_LOGI(TAG, "\n[STEP 7] Second suspend test...");
-    uflake_process_suspend(input_process_pid);
-    ESP_LOGW(TAG, "✓ Process SUSPENDED again");
-    vTaskDelay(pdMS_TO_TICKS(2000));
-
-    // Step 5: Resume again
-    ESP_LOGI(TAG, "\n[STEP 8] Final resume...");
-    uflake_process_resume(input_process_pid);
-    ESP_LOGI(TAG, "✓ Process RESUMED - continuing operation");
-
-    ESP_LOGI(TAG, "\n=== Demo Complete ===");
-    ESP_LOGI(TAG, "\nKERNEL vs RAW FREERTOS COMPARISON:");
-    ESP_LOGI(TAG, "┌─────────────────────┬──────────────────────┬─────────────────────┐");
-    ESP_LOGI(TAG, "│ Feature             │ Raw FreeRTOS         │ uFlake Kernel       │");
-    ESP_LOGI(TAG, "├─────────────────────┼──────────────────────┼─────────────────────┤");
-    ESP_LOGI(TAG, "│ API Complexity      │ xTaskCreate(7 args)  │ process_create(6)   │");
-    ESP_LOGI(TAG, "│ Process Tracking    │ Manual               │ Automatic           │");
-    ESP_LOGI(TAG, "│ State Management    │ Manual               │ Kernel-managed      │");
-    ESP_LOGI(TAG, "│ Error Validation    │ None                 │ Built-in            │");
-    ESP_LOGI(TAG, "│ Debugging Support   │ Limited              │ Full logging        │");
-    ESP_LOGI(TAG, "│ Portability         │ FreeRTOS-specific    │ RTOS-agnostic       │");
-    ESP_LOGI(TAG, "│ Memory Safety       │ Manual tracking      │ Kernel-tracked      │");
-    ESP_LOGI(TAG, "└─────────────────────┴──────────────────────┴─────────────────────┘");
-    ESP_LOGI(TAG, "\nProcess continues running in background...\n");
-}
-
-// ============================================================================
-// uFlake Kernel Event System Demo: Publish-Subscribe Pattern
-// ============================================================================
-
-// Event callback for system events (process created/terminated)
-void on_system_event(const void *event_data)
-{
-    const uflake_event_t *event = (const uflake_event_t *)event_data;
-    ESP_LOGI(TAG, "[EVENT_CALLBACK] System Event: %s, timestamp=%u",
-             event->name, (unsigned)event->timestamp);
-
-    if (event->data_size > 0)
-    {
-        ESP_LOGI(TAG, "[EVENT_CALLBACK]   Data: %u bytes received", (unsigned)event->data_size);
-    }
-}
-
-// Event callback for memory events
-void on_memory_event(const void *event_data)
-{
-    const uflake_event_t *event = (const uflake_event_t *)event_data;
-    ESP_LOGW(TAG, "[EVENT_CALLBACK] ⚠️ Memory Event: %s", event->name);
-
-    if (event->data_size >= sizeof(size_t))
-    {
-        size_t free_mem = *((size_t *)event->data);
-        ESP_LOGW(TAG, "[EVENT_CALLBACK]   Free memory: %u bytes", (unsigned)free_mem);
-    }
-}
-
-// Event callback for custom user events
-void on_custom_event(const void *event_data)
-{
-    const uflake_event_t *event = (const uflake_event_t *)event_data;
-    ESP_LOGI(TAG, "[EVENT_CALLBACK] 🔔 Custom Event: %s", event->name);
-
-    if (event->data_size > 0)
-    {
-        ESP_LOGI(TAG, "[EVENT_CALLBACK]   Custom data: %.*s",
-                 (int)event->data_size, (char *)event->data);
-    }
-}
-
-/*
- * WHY USE KERNEL EVENT SYSTEM?
- *
- * 1. DECOUPLING: Publishers don't need to know about subscribers
- * 2. FLEXIBILITY: Multiple subscribers can listen to same event
- * 3. ASYNC COMMUNICATION: Non-blocking event delivery
- * 4. DEBUGGING: Centralized event logging and tracking
- * 5. EXTENSIBILITY: Easy to add new event types without changing existing code
- */
-void demo_kernel_events(void)
-{
-    ESP_LOGI(TAG, "\n\n=== uFlake Kernel Event System Demo ===");
-    ESP_LOGI(TAG, "Demonstrating Publish-Subscribe Pattern\n");
-
-    // ========================================================================
-    // STEP 1: Subscribe to events
-    // ========================================================================
-    ESP_LOGI(TAG, "[STEP 1] Subscribing to events...");
-
-    // Subscribe to process creation events
-    uflake_result_t result = uflake_event_subscribe(
-        UFLAKE_EVENT_PROCESS_CREATED,
-        on_system_event,
-        &system_event_sub_id);
-    if (result == UFLAKE_OK)
-    {
-        ESP_LOGI(TAG, "✓ Subscribed to '%s' (ID: %u)",
-                 UFLAKE_EVENT_PROCESS_CREATED, (unsigned)system_event_sub_id);
-    }
-
-    // Subscribe to memory low events
-    result = uflake_event_subscribe(
-        UFLAKE_EVENT_MEMORY_LOW,
-        on_memory_event,
-        &memory_event_sub_id);
-    if (result == UFLAKE_OK)
-    {
-        ESP_LOGI(TAG, "✓ Subscribed to '%s' (ID: %u)",
-                 UFLAKE_EVENT_MEMORY_LOW, (unsigned)memory_event_sub_id);
-    }
-
-    // Subscribe to custom user event
-    result = uflake_event_subscribe(
-        "user.button.pressed",
-        on_custom_event,
-        &custom_event_sub_id);
-    if (result == UFLAKE_OK)
-    {
-        ESP_LOGI(TAG, "✓ Subscribed to 'user.button.pressed' (ID: %u)",
-                 (unsigned)custom_event_sub_id);
-    }
-
-    vTaskDelay(pdMS_TO_TICKS(500));
-
-    // ========================================================================
-    // STEP 2: Publish events with data
-    // ========================================================================
-    ESP_LOGI(TAG, "\n[STEP 2] Publishing events...");
-
-    // Publish system event with process data
-    ESP_LOGI(TAG, "Publishing: Process created event");
-    uint32_t pid_data = 42;
-    uflake_event_publish(
-        UFLAKE_EVENT_PROCESS_CREATED,
-        EVENT_TYPE_SYSTEM,
-        &pid_data,
-        sizeof(pid_data));
-    vTaskDelay(pdMS_TO_TICKS(100)); // Allow time for processing
-
-    // Publish memory event with free size
-    ESP_LOGI(TAG, "Publishing: Memory low event");
-    size_t free_mem = heap_caps_get_free_size(MALLOC_CAP_8BIT);
-    uflake_event_publish(
-        UFLAKE_EVENT_MEMORY_LOW,
-        EVENT_TYPE_ERROR,
-        &free_mem,
-        sizeof(free_mem));
-    vTaskDelay(pdMS_TO_TICKS(100));
-
-    // Publish custom user event with string data
-    ESP_LOGI(TAG, "Publishing: Custom button press event");
-    const char *button_data = "Button A pressed 3x";
-    uflake_event_publish(
-        "user.button.pressed",
-        EVENT_TYPE_USER,
-        button_data,
-        strlen(button_data));
-    vTaskDelay(pdMS_TO_TICKS(100));
-
-    // ========================================================================
-    // STEP 3: Publish hardware events
-    // ========================================================================
-    ESP_LOGI(TAG, "\n[STEP 3] Publishing hardware events...");
-
-    ESP_LOGI(TAG, "Publishing: Multiple custom events");
-    for (int i = 0; i < 3; i++)
-    {
-        char event_name[32];
-        snprintf(event_name, sizeof(event_name), "hardware.sensor%d.data", i);
-
-        int sensor_value = esp_random() % 100;
-        uflake_event_publish(
-            event_name,
-            EVENT_TYPE_HARDWARE,
-            &sensor_value,
-            sizeof(sensor_value));
-        vTaskDelay(pdMS_TO_TICKS(50));
-    }
-
-    vTaskDelay(pdMS_TO_TICKS(500));
-
-    // ========================================================================
-    // STEP 4: Event Statistics and Benefits
-    // ========================================================================
-    ESP_LOGI(TAG, "\n[STEP 4] Event System Benefits:");
-    ESP_LOGI(TAG, "┌────────────────────────────────────────────────────────────┐");
-    ESP_LOGI(TAG, "│ Feature          │ Description                             │");
-    ESP_LOGI(TAG, "├──────────────────┼─────────────────────────────────────────┤");
-    ESP_LOGI(TAG, "│ Decoupling       │ Components don't directly depend on     │");
-    ESP_LOGI(TAG, "│                  │ each other - only on event names        │");
-    ESP_LOGI(TAG, "├──────────────────┼─────────────────────────────────────────┤");
-    ESP_LOGI(TAG, "│ Multiple         │ Many subscribers can listen to          │");
-    ESP_LOGI(TAG, "│ Subscribers      │ same event (broadcast pattern)          │");
-    ESP_LOGI(TAG, "├──────────────────┼─────────────────────────────────────────┤");
-    ESP_LOGI(TAG, "│ Async Delivery   │ Events queued and processed in          │");
-    ESP_LOGI(TAG, "│                  │ kernel context (non-blocking)           │");
-    ESP_LOGI(TAG, "├──────────────────┼─────────────────────────────────────────┤");
-    ESP_LOGI(TAG, "│ Type Safety      │ Events carry type info and validated    │");
-    ESP_LOGI(TAG, "│                  │ data payloads                           │");
-    ESP_LOGI(TAG, "├──────────────────┼─────────────────────────────────────────┤");
-    ESP_LOGI(TAG, "│ Debugging        │ Centralized logging of all events       │");
-    ESP_LOGI(TAG, "│                  │ with timestamps                         │");
-    ESP_LOGI(TAG, "└──────────────────┴─────────────────────────────────────────┘");
-
-    ESP_LOGI(TAG, "\n=== Event Demo Complete ===");
-    ESP_LOGI(TAG, "Subscriptions remain active - callbacks will fire on new events\n");
-}
-
 void init_nrf24()
 {
-    NRF24_t nrf24_dev = {
-        .cePin = GPIO_NUM_48,
-        .csnPin = GPIO_NUM_45,
-        .channel = 76,
-        .payload = 16,
-        .spiHost = USPI_HOST_SPI3,
-        .frequency = USPI_FREQ_20MHZ};
+    NRF24_t nrf24_dev = {};
+    nrf24_dev.cePin = GPIO_NUM_48;
+    nrf24_dev.csnPin = GPIO_NUM_45;
+    nrf24_dev.channel = 76;
+    nrf24_dev.payload = 16;
+    nrf24_dev.spiHost = USPI_HOST_SPI3;
+    nrf24_dev.frequency = USPI_FREQ_20MHZ;
+    nrf24_dev.status = 0; // initialize status to a known value
 
     if (!Nrf24_init(&nrf24_dev))
     {
@@ -437,6 +136,8 @@ void init_nrf24()
         ESP_LOGE(TAG, "NRF24L01+ is NOT connected");
     }
 }
+
+extern const app_bundle_t counter_app; // From Apps/counter_app/app_main.c
 
 extern "C"
 {
@@ -495,12 +196,6 @@ extern "C"
 
         ESP_LOGI(TAG, "uFlake OS started successfully");
 
-        // Demonstrate uFlake kernel process management
-        ESP_LOGI(TAG, "\n\n======================================");
-        ESP_LOGI(TAG, "uFlake Kernel Process Management Demo");
-        ESP_LOGI(TAG, "======================================\n");
-        demo_kernel_process_management();
-
         // INITIALIZE the FIRST SPI BUS  - before adding any devices
         if (uspi_bus_init(USPI_HOST_SPI3, GPIO_NUM_11, GPIO_NUM_13, GPIO_NUM_12, 4096) != UFLAKE_OK)
         {
@@ -515,20 +210,37 @@ extern "C"
             return;
         }
 
+        uflake_result_t result = uflake_process_create(
+            "InputReader",           // Process name
+            input_read_task,         // Entry point
+            NULL,                    // Arguments
+            4096,                    // Stack size
+            PROCESS_PRIORITY_NORMAL, // Kernel priority enum
+            &input_process_pid       // Returns PID
+        );
+        if (result != UFLAKE_OK)
+        {
+            ESP_LOGE(TAG, "Failed to create Input Reader process");
+            return;
+        }
+
         // init_nrf24();
 
-        // // initialize SD card
-        // SD_CardConfig sd_config = {
-        //     .csPin = GPIO_NUM_5,
-        //     .clockSpeedHz = USPI_FREQ_1MHZ,
-        //     .host = USPI_HOST_SPI2,
-        // };
+        // initialize SD card
+        SD_CardConfig sd_config = {};
+        sd_config.csPin = GPIO_NUM_39;
+        sd_config.clockSpeedHz = USPI_FREQ_1MHZ;
+        sd_config.host = USPI_HOST_SPI2;
 
-        // if (!sdCard_init(&sd_config))
-        // {
-        //     ESP_LOGE(TAG, "Failed to initialize SD card");
-        //     return;
-        // }
+        if (!sdCard_init(&sd_config))
+        {
+            ESP_LOGE(TAG, "Failed to initialize SD card");
+            return;
+        }
+
+        app_loader_init();
+
+        app_loader_launch(app_loader_register(&counter_app)); // Launch counter app
 
         // Create a process using uflake kernel to handle inputs
         // uflake_process_create("InputsProcess", input_read_task, NULL, 2048, PROCESS_PRIORITY_NORMAL, NULL);

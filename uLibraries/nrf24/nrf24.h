@@ -18,7 +18,7 @@ extern "C"
         uint8_t PTX;       // In sending mode.
         uint8_t channel;   // Channel 0 - 127 or 0 - 84 in the US.
         uint8_t payload;   // Payload width in bytes default 16 max 32.
-        
+
         spi_host_device_t spiHost;
         spi_device_handle_t spi;
         uint32_t frequency;

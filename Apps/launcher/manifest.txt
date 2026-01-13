@@ -1,0 +1,11 @@
+name=Launcher
+version=1.0.0
+author=uFlake Team
+description=Home screen and app launcher
+icon=home.png
+type=APP_TYPE_LAUNCHER
+stack_size=8192
+priority=10
+requires_gui=true
+requires_sdcard=false
+requires_network=false

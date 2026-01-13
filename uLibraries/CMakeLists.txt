@@ -3,14 +3,15 @@
 
 idf_component_register(
     SRCS 
-        "st7789/ST7789_driver.c"
+        #"st7789/ST7789_driver.c"
+        #"st7789/ST7789_lvgl.c"
         "pca9555/PCA9555.c"
         "sdCard/sdCard.c"
         "nrf24/nrf24.c"
     
     INCLUDE_DIRS 
         "."
-        "st7789"
+        #"st7789"
         "pca9555"
         "sdCard"
         "nrf24"
