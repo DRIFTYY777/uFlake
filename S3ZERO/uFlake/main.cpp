@@ -10,6 +10,7 @@
 #include "uI2c.h"
 #include "uSPI.h"
 #include "unvs.h"
+#include "uUART.h"
 #include "appLoader.h"
 
 #include "pca9555.h"
@@ -239,7 +240,6 @@ extern "C"
         }
 
         app_loader_init();
-
         app_loader_launch(app_loader_register(&counter_app)); // Launch counter app
 
         // Create a process using uflake kernel to handle inputs

@@ -3,6 +3,7 @@ idf_component_register(
         "src/uI2c.c"
         "src/uSPI.c"
         "src/uNVS.c" 
+        "src/uUART.c"
     
     INCLUDE_DIRS 
         "include"  
@@ -12,7 +13,9 @@ idf_component_register(
         esp_driver_i2c
         esp_driver_spi
         nvs_flash 
+        esp_driver_uart
         uFlakeKernal
+
 )
 
 # Set compiler flags

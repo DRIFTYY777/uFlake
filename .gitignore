@@ -2,5 +2,5 @@
 build/
 .devcontainer/
 .vscode/
-.S3ZERO/boot_screen
-.managed_components\lvgl__lvgl
+S3ZERO/boot_screen/
+managed_components/
