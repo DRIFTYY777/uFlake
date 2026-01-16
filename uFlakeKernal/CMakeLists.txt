@@ -1,33 +1,23 @@
 idf_component_register(
     SRCS 
         "kernel.c"
-        "memory/memory_manager.c"
-        "scheduler/scheduler.c"
-        "panic/panic_handler.c"
-        "logging/logger.c"
-        "sync/synchronization.c"
-        "crypto/crypto_engine.c"
-        "buffer/buffer_manager.c"
-        "timer/timer_manager.c"
-        "ipc/message_queue.c"
-        "watchdog/watchdog_manager.c"
-        "event/event_manager.c"
-        "resource/resource_manager.c"
+        "src/memory_manager.c"
+        "src/scheduler.c"
+        "src/panic_handler.c"
+        "src/logger.c"
+        "src/synchronization.c"
+        "src/crypto_engine.c"
+        "src/buffer_manager.c"
+        "src/timer_manager.c"
+        "src/message_queue.c"
+        "src/watchdog_manager.c"
+        "src/event_manager.c"
+        "src/resource_manager.c"
+        "src/hw_auth.c"
     
     INCLUDE_DIRS 
         "."
-        "memory"
-        "scheduler"
-        "panic"
-        "logging"
-        "sync"
-        "crypto"
-        "buffer"
-        "timer"
-        "ipc"
-        "watchdog"
-        "event"
-        "resource"
+        "include"  
     
     REQUIRES 
         driver
@@ -43,12 +33,15 @@ idf_component_register(
         hal
         esp_rom
         pthread
+        efuse
+        bootloader_support
+        esp_partition
+        espressif__esp_secure_cert_mgr
         
         
     PRIV_REQUIRES
         esp_pm
         esp_mm
-        bootloader_support
         
 )
 

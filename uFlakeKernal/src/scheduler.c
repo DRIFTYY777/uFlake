@@ -1,5 +1,5 @@
 #include "scheduler.h"
-#include "../memory/memory_manager.h"
+#include "memory_manager.h"
 #include "esp_log.h"
 
 static const char *TAG = "SCHEDULER";

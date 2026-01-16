@@ -1,5 +1,5 @@
 #include "resource_manager.h"
-#include "../memory/memory_manager.h"
+#include "memory_manager.h"
 #include "esp_log.h"
 
 static const char *TAG = "RESOURCE_MGR";

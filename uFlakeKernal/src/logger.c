@@ -1,5 +1,5 @@
 #include "logger.h"
-#include "../memory/memory_manager.h"
+#include "memory_manager.h"
 #include "esp_log.h"
 #include <stdarg.h>
 #include <stdio.h>

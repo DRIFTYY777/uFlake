@@ -7,6 +7,12 @@ static const char *TAG = "UART_HAL";
 // Event task function prototype
 static void uart_event_task(void *pvParameters);
 
+// NOTE: This HAL driver uses FreeRTOS directly for hardware-level operations because:
+// 1. ESP-IDF's uart_driver_install() returns a raw FreeRTOS QueueHandle_t
+// 2. xQueueReceive/xQueueReset are needed to interact with ESP-IDF's UART event queue
+// 3. HAL is the low-level hardware interface - kernel abstraction is for app-level tasks
+// 4. Adding wrappers here would create unnecessary overhead for real-time operations
+
 // Get default configuration
 void uflake_uart_get_default_config(uflake_uart_config_t *config, uart_port_t port)
 {
@@ -127,7 +133,7 @@ uflake_result_t uflake_uart_init(uflake_uart_handle_t *handle, const uflake_uart
         else
         {
             // Allocate pattern buffer
-            handle->pattern_buffer = (uint8_t *)malloc(config->rx_buffer_size);
+            handle->pattern_buffer = (uint8_t *)uflake_malloc(config->rx_buffer_size, UFLAKE_MEM_INTERNAL);
             if (handle->pattern_buffer)
             {
                 handle->pattern_buffer_size = config->rx_buffer_size;
@@ -135,21 +141,26 @@ uflake_result_t uflake_uart_init(uflake_uart_handle_t *handle, const uflake_uart
         }
     }
 
-    // Create event task
-    BaseType_t task_created = xTaskCreate(uart_event_task,
-                                          "uart_event_task",
-                                          UART_EVENT_TASK_STACK_SIZE,
-                                          handle,
-                                          UART_EVENT_TASK_PRIORITY,
-                                          &handle->event_task_handle);
+    // Create event task using uFlake kernel
+    uint32_t pid;
+    uflake_result_t result = uflake_process_create(
+        "uart_event_task",
+        uart_event_task,
+        handle,
+        UART_EVENT_TASK_STACK_SIZE,
+        PROCESS_PRIORITY_NORMAL,
+        &pid);
 
-    if (task_created != pdPASS)
+    if (result != UFLAKE_OK)
     {
         ESP_LOGE(TAG, "Failed to create UART event task");
         uart_driver_delete(config->port);
         handle->is_initialized = false;
         return UFLAKE_ERROR_MEMORY;
     }
+
+    // Get the task handle from FreeRTOS for later deletion
+    handle->event_task_handle = xTaskGetHandle("uart_event_task");
 
     ESP_LOGI(TAG, "UART%d initialized (TX=%d, RX=%d, Baud=%d)",
              config->port, config->tx_pin, config->rx_pin, config->baud_rate);
@@ -175,7 +186,7 @@ uflake_result_t uflake_uart_deinit(uflake_uart_handle_t *handle)
     // Free pattern buffer if allocated
     if (handle->pattern_buffer != NULL)
     {
-        free(handle->pattern_buffer);
+        uflake_free(handle->pattern_buffer);
         handle->pattern_buffer = NULL;
     }
 
@@ -486,7 +497,7 @@ uflake_result_t uflake_uart_enable_pattern_detect(uflake_uart_handle_t *handle, 
     // Allocate pattern buffer if not already done
     if (handle->pattern_buffer == NULL)
     {
-        handle->pattern_buffer = (uint8_t *)malloc(UART_RX_BUF_SIZE);
+        handle->pattern_buffer = (uint8_t *)uflake_malloc(UART_RX_BUF_SIZE, UFLAKE_MEM_INTERNAL);
         if (handle->pattern_buffer == NULL)
         {
             ESP_LOGE(TAG, "Failed to allocate pattern buffer");
@@ -568,7 +579,7 @@ static void uart_event_task(void *pvParameters)
 {
     uflake_uart_handle_t *handle = (uflake_uart_handle_t *)pvParameters;
     uart_event_t event;
-    uint8_t *rx_buffer = (uint8_t *)malloc(UART_RX_BUF_SIZE);
+    uint8_t *rx_buffer = (uint8_t *)uflake_malloc(UART_RX_BUF_SIZE, UFLAKE_MEM_INTERNAL);
 
     if (rx_buffer == NULL)
     {
@@ -705,6 +716,7 @@ static void uart_event_task(void *pvParameters)
         }
     }
 
-    free(rx_buffer);
+    ESP_LOGW(TAG, "UART event task exiting for UART%d", handle->port);
+    uflake_free(rx_buffer);
     vTaskDelete(NULL);
 }

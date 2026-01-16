@@ -38,6 +38,12 @@ extern "C"
     uflake_result_t uflake_semaphore_give(uflake_semaphore_t *semaphore); // ISR-safe: auto-detects context
     uflake_result_t uflake_semaphore_destroy(uflake_semaphore_t *semaphore);
 
+    // Generic FreeRTOS wrappers (for direct use with FreeRTOS handles)
+    uflake_result_t uflake_semaphore_take_handle(SemaphoreHandle_t handle, uint32_t timeout_ms);
+    uflake_result_t uflake_semaphore_give_handle(SemaphoreHandle_t handle); // ISR-safe
+    uflake_result_t uflake_mutex_take_handle(SemaphoreHandle_t handle, uint32_t timeout_ms);
+    uflake_result_t uflake_mutex_give_handle(SemaphoreHandle_t handle);
+
     // Note: Mutexes CANNOT be used in ISR context - use semaphores instead!
 
 #ifdef __cplusplus

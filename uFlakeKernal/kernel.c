@@ -2,6 +2,8 @@
 #include "esp_log.h"
 #include "esp_system.h"
 #include "esp_heap_caps.h"
+#include "esp_timer.h"
+#include "rom/ets_sys.h"
 
 static const char *TAG = "KERNEL";
 static uflake_kernel_t g_kernel = {0};
@@ -215,4 +217,38 @@ kernel_state_t uflake_kernel_get_state(void)
 uint32_t uflake_kernel_get_tick_count(void)
 {
     return g_kernel.tick_count;
+}
+
+// Hardware timer-based delay functions
+void uflake_kernel_delay(uint32_t ticks)
+{
+    if (uflake_kernel_is_in_isr())
+    {
+        ESP_LOGE(TAG, "Cannot delay from ISR context");
+        return;
+    }
+    vTaskDelay(ticks);
+}
+
+void uflake_kernel_delay_ms(uint32_t milliseconds)
+{
+    if (uflake_kernel_is_in_isr())
+    {
+        ESP_LOGE(TAG, "Cannot delay from ISR context");
+        return;
+    }
+    vTaskDelay(pdMS_TO_TICKS(milliseconds));
+}
+
+void uflake_kernel_delay_us(uint32_t microseconds)
+{
+    // Use hardware delay for microseconds (busy-wait)
+    // esp_rom_delay_us is the hardware timer-based microsecond delay
+    ets_delay_us(microseconds);
+}
+
+uint64_t uflake_kernel_get_time_us(void)
+{
+    // Get hardware timer value in microseconds
+    return esp_timer_get_time();
 }

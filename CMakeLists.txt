@@ -8,9 +8,10 @@ list(FILTER APP_DIRS EXCLUDE REGEX ".*\\.(c|h|md|txt)$")
 
 # Add both the kernel and the application components
 set(EXTRA_COMPONENT_DIRS 
-    "uFlakeKernal"
     "S3ZERO/uFlake"
-    "S3ZERO/uFlakeHAL"
+    "uFlakeCore"
+    "uFlakeKernal"
+    "uFlakeHAL"
     "uLibraries"
     "uAppLoader"
     ${APP_DIRS}

@@ -1,0 +1,124 @@
+# Add these configurations to sdkconfig.defaults.esp32s3 for production security
+
+# ============================================
+# SECURE BOOT V2 CONFIGURATION
+# ============================================
+CONFIG_SECURE_BOOT=y
+CONFIG_SECURE_BOOT_V2_ENABLED=y
+CONFIG_SECURE_BOOT_SUPPORTS_RSA=y
+
+# Bootloader mode - use RELEASE for production
+# Comment out for development, uncomment for production
+# CONFIG_SECURE_BOOTLOADER_MODE_RELEASE=y
+
+# Sign images during build
+CONFIG_SECURE_SIGNED_APPS_SCHEME=RSA_PSS
+CONFIG_SECURE_SIGNED_ON_BUILD=y
+
+# Path to your signing key (KEEP THIS SECRET!)
+# Place this file in project root and add to .gitignore
+CONFIG_SECURE_BOOT_SIGNING_KEY="secure_boot_signing_key.pem"
+
+# Enable aggressive key revoke for maximum security
+CONFIG_SECURE_BOOT_ENABLE_AGGRESSIVE_KEY_REVOKE=y
+
+# ============================================
+# FLASH ENCRYPTION CONFIGURATION
+# ============================================
+CONFIG_SECURE_FLASH_ENC_ENABLED=y
+
+# Use RELEASE mode for production (disables UART downloads)
+# Comment out for development, uncomment for production
+# CONFIG_SECURE_FLASH_ENCRYPTION_MODE_RELEASE=y
+
+# Require all flash to be encrypted
+CONFIG_SECURE_FLASH_REQUIRE_FULLY_ENCRYPTED=y
+
+# Disable plaintext downloads (production)
+CONFIG_SECURE_FLASH_UART_BOOTLOADER_ALLOW_ENC=n
+CONFIG_SECURE_FLASH_UART_BOOTLOADER_ALLOW_DEC=n
+CONFIG_SECURE_FLASH_UART_BOOTLOADER_ALLOW_CACHE=n
+
+# Use AES-256 (more secure than AES-128)
+CONFIG_SECURE_FLASH_ENCRYPTION_AES256=y
+
+# ============================================
+# EFUSE CONFIGURATION
+# ============================================
+# Enable secure version (for anti-rollback)
+CONFIG_EFUSE_SECURE_VERSION_ENABLED=y
+
+# Disable virtual eFuse for production
+CONFIG_EFUSE_VIRTUAL=n
+
+# ============================================
+# BOOTLOADER SECURITY
+# ============================================
+# Minimize bootloader logging in production
+# CONFIG_BOOTLOADER_LOG_LEVEL_NONE=y
+
+# For development, use:
+CONFIG_BOOTLOADER_LOG_LEVEL_INFO=y
+
+# Don't skip validation
+CONFIG_BOOTLOADER_SKIP_VALIDATE_IN_DEEP_SLEEP=n
+
+# ============================================
+# HARDWARE SECURITY FEATURES
+# ============================================
+# Disable JTAG in production
+# Comment out for development debugging
+# CONFIG_ESP_SYSTEM_DISABLE_JTAG=y
+
+# Disable ROM UART downloads in production
+# Comment out for development
+# CONFIG_ESP_SYSTEM_DISABLE_ROM_DOWNLOAD=y
+
+# Enable hardware crypto acceleration
+CONFIG_MBEDTLS_HARDWARE_AES=y
+CONFIG_MBEDTLS_HARDWARE_SHA=y
+CONFIG_MBEDTLS_HARDWARE_MPI=y
+
+# ============================================
+# PARTITION TABLE
+# ============================================
+# Use custom partition table with secure cert partition
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+CONFIG_PARTITION_TABLE_FILENAME="partitions.csv"
+
+# ============================================
+# APP SECURITY
+# ============================================
+# Enable stack overflow detection
+CONFIG_ESP_SYSTEM_CHECK_INT_LEVEL_5=y
+CONFIG_FREERTOS_CHECK_STACKOVERFLOW_CANARY=y
+
+# Watchdog timers
+CONFIG_ESP_TASK_WDT=y
+CONFIG_ESP_TASK_WDT_TIMEOUT_S=10
+CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU0=y
+CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU1=y
+
+# Panic handler
+CONFIG_ESP_SYSTEM_PANIC_PRINT_HALT=y
+CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH=y
+
+# ============================================
+# MEMORY PROTECTION
+# ============================================
+# Enable memory protection features
+CONFIG_ESP_SYSTEM_MEMPROT_FEATURE=y
+
+# ============================================
+# DEVELOPMENT VS PRODUCTION
+# ============================================
+# IMPORTANT: Before production, uncomment these:
+# - CONFIG_SECURE_BOOTLOADER_MODE_RELEASE=y
+# - CONFIG_SECURE_FLASH_ENCRYPTION_MODE_RELEASE=y
+# - CONFIG_BOOTLOADER_LOG_LEVEL_NONE=y
+# - CONFIG_ESP_SYSTEM_DISABLE_JTAG=y
+# - CONFIG_ESP_SYSTEM_DISABLE_ROM_DOWNLOAD=y
+#
+# And set:
+# - CONFIG_BOOTLOADER_LOG_LEVEL_INFO=n

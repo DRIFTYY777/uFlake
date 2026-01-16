@@ -277,7 +277,7 @@ esp_err_t i2c_bus_manager_scan(i2c_port_t port, uint8_t *found_devices,
     *found_count = 0;
     ESP_LOGI(TAG, "Scanning I2C bus %d...", port);
 
-    // ✅ New API: Use i2c_master_probe
+    // New API Use i2c_master_probe
     for (uint16_t addr = 0x08; addr < 0x78; addr++)
     {
         esp_err_t ret = i2c_master_probe(u_i2c_buses[port].bus_handle, addr, 50);
@@ -329,7 +329,7 @@ esp_err_t i2c_manager_write(i2c_port_t port, uint8_t device_addr,
         return ESP_ERR_NOT_FOUND;
     }
 
-    // ✅ New API: i2c_master_transmit
+    // New API i2c_master_transmit
     esp_err_t ret = i2c_master_transmit(dev_node->dev_handle, write_buffer, write_size, 1000);
 
     uflake_mutex_unlock(u_i2c_buses[port].mutex);
@@ -364,7 +364,7 @@ esp_err_t i2c_manager_read(i2c_port_t port, uint8_t device_addr,
         return ESP_ERR_NOT_FOUND;
     }
 
-    // ✅ New API: i2c_master_receive
+    // New API i2c_master_receive
     esp_err_t ret = i2c_master_receive(dev_node->dev_handle, read_buffer, read_size, 1000);
 
     uflake_mutex_unlock(u_i2c_buses[port].mutex);
@@ -400,7 +400,7 @@ esp_err_t i2c_manager_write_read(i2c_port_t port, uint8_t device_addr,
         return ESP_ERR_NOT_FOUND;
     }
 
-    // ✅ New API: i2c_master_transmit_receive
+    // New API i2c_master_transmit_receive
     esp_err_t ret = i2c_master_transmit_receive(dev_node->dev_handle,
                                                 write_buffer, write_size,
                                                 read_buffer, read_size, 1000);

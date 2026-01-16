@@ -2250,6 +2250,13 @@ CONFIG_WIFI_PROV_STA_ALL_CHANNEL_SCAN=y
 # end of Wi-Fi Provisioning Manager
 
 #
+# ESP Secure Cert Manager
+#
+CONFIG_ESP_SECURE_CERT_DS_PERIPHERAL=y
+# CONFIG_ESP_SECURE_CERT_SUPPORT_LEGACY_FORMATS is not set
+# end of ESP Secure Cert Manager
+
+#
 # TinyUSB Stack
 #
 CONFIG_TINYUSB_DEBUG_LEVEL=1

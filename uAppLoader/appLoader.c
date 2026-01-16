@@ -1,5 +1,5 @@
 #include "appLoader.h"
-#include "memory/memory_manager.h"
+// #include "memory/memory_manager.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include <string.h>
@@ -10,7 +10,7 @@ static const char *TAG = "APP_LOADER";
 static app_descriptor_t app_registry[MAX_APPS];
 static uint32_t app_count = 0;
 static uint32_t next_app_id = 1;
-static SemaphoreHandle_t app_loader_mutex = NULL;
+static uflake_mutex_t *app_loader_mutex = NULL;
 static bool initialized = false;
 
 // Current app tracking
@@ -47,8 +47,8 @@ uflake_result_t app_loader_init(void)
         return UFLAKE_OK;
     }
 
-    app_loader_mutex = xSemaphoreCreateMutex();
-    if (!app_loader_mutex)
+    // Create mutex using uFlake API
+    if (uflake_mutex_create(&app_loader_mutex) != UFLAKE_OK)
     {
         ESP_LOGE(TAG, "Failed to create mutex");
         return UFLAKE_ERROR_MEMORY;
@@ -108,7 +108,7 @@ uint32_t app_loader_register_internal(const app_manifest_t *manifest,
         return 0;
     }
 
-    xSemaphoreTake(app_loader_mutex, portMAX_DELAY);
+    uflake_mutex_lock(app_loader_mutex, UINT32_MAX);
 
     app_descriptor_t *app = &app_registry[app_count];
     memset(app, 0, sizeof(app_descriptor_t));
@@ -136,7 +136,7 @@ uint32_t app_loader_register_internal(const app_manifest_t *manifest,
     }
 
     app_count++;
-    xSemaphoreGive(app_loader_mutex);
+    uflake_mutex_unlock(app_loader_mutex);
 
     return app->app_id;
 }
@@ -172,7 +172,7 @@ static void app_task_wrapper(void *arg)
     ESP_LOGI(TAG, "App %s exited", app->manifest.name);
 
     // Clean up
-    xSemaphoreTake(app_loader_mutex, portMAX_DELAY);
+    uflake_mutex_lock(app_loader_mutex, UINT32_MAX);
     app->state = APP_STATE_STOPPED;
     app->task_handle = NULL;
 
@@ -180,7 +180,7 @@ static void app_task_wrapper(void *arg)
     if (!app->is_launcher && launcher_app_id != 0)
     {
         current_app_id = 0;
-        xSemaphoreGive(app_loader_mutex);
+        uflake_mutex_unlock(app_loader_mutex);
 
         // Resume launcher
         app_loader_resume(launcher_app_id);
@@ -188,7 +188,7 @@ static void app_task_wrapper(void *arg)
     else
     {
         current_app_id = 0;
-        xSemaphoreGive(app_loader_mutex);
+        uflake_mutex_unlock(app_loader_mutex);
     }
 
     vTaskDelete(NULL);
@@ -199,19 +199,19 @@ uflake_result_t app_loader_launch(uint32_t app_id)
     if (!initialized)
         return UFLAKE_ERROR;
 
-    xSemaphoreTake(app_loader_mutex, portMAX_DELAY);
+    uflake_mutex_lock(app_loader_mutex, UINT32_MAX);
 
     app_descriptor_t *app = find_app_by_id(app_id);
     if (!app)
     {
-        xSemaphoreGive(app_loader_mutex);
+        uflake_mutex_unlock(app_loader_mutex);
         ESP_LOGE(TAG, "App ID %lu not found", app_id);
         return UFLAKE_ERROR_NOT_FOUND;
     }
 
     if (app->state == APP_STATE_RUNNING)
     {
-        xSemaphoreGive(app_loader_mutex);
+        uflake_mutex_unlock(app_loader_mutex);
         ESP_LOGW(TAG, "App %s already running", app->manifest.name);
         return UFLAKE_OK;
     }
@@ -254,7 +254,7 @@ uflake_result_t app_loader_launch(uint32_t app_id)
 
     if (result != UFLAKE_OK)
     {
-        xSemaphoreGive(app_loader_mutex);
+        uflake_mutex_unlock(app_loader_mutex);
         ESP_LOGE(TAG, "Failed to create task for app %s", app->manifest.name);
         return result;
     }
@@ -267,7 +267,7 @@ uflake_result_t app_loader_launch(uint32_t app_id)
     app->last_run_time = (uint32_t)(esp_timer_get_time() / 1000000);
     current_app_id = app_id;
 
-    xSemaphoreGive(app_loader_mutex);
+    uflake_mutex_unlock(app_loader_mutex);
 
     ESP_LOGI(TAG, "Launched app: %s (ID: %lu)", app->manifest.name, app_id);
     return UFLAKE_OK;
@@ -278,18 +278,18 @@ uflake_result_t app_loader_terminate(uint32_t app_id)
     if (!initialized)
         return UFLAKE_ERROR;
 
-    xSemaphoreTake(app_loader_mutex, portMAX_DELAY);
+    uflake_mutex_lock(app_loader_mutex, UINT32_MAX);
 
     app_descriptor_t *app = find_app_by_id(app_id);
     if (!app)
     {
-        xSemaphoreGive(app_loader_mutex);
+        uflake_mutex_unlock(app_loader_mutex);
         return UFLAKE_ERROR_NOT_FOUND;
     }
 
     if (app->state != APP_STATE_RUNNING && app->state != APP_STATE_PAUSED)
     {
-        xSemaphoreGive(app_loader_mutex);
+        uflake_mutex_unlock(app_loader_mutex);
         return UFLAKE_OK; // Already stopped
     }
 
@@ -307,7 +307,7 @@ uflake_result_t app_loader_terminate(uint32_t app_id)
     if (current_app_id == app_id)
         current_app_id = 0;
 
-    xSemaphoreGive(app_loader_mutex);
+    uflake_mutex_unlock(app_loader_mutex);
 
     // If this was not the launcher, return to launcher
     if (!app->is_launcher && launcher_app_id != 0)
@@ -323,18 +323,18 @@ uflake_result_t app_loader_pause(uint32_t app_id)
     if (!initialized)
         return UFLAKE_ERROR;
 
-    xSemaphoreTake(app_loader_mutex, portMAX_DELAY);
+    uflake_mutex_lock(app_loader_mutex, UINT32_MAX);
 
     app_descriptor_t *app = find_app_by_id(app_id);
     if (!app)
     {
-        xSemaphoreGive(app_loader_mutex);
+        uflake_mutex_unlock(app_loader_mutex);
         return UFLAKE_ERROR_NOT_FOUND;
     }
 
     if (app->state != APP_STATE_RUNNING)
     {
-        xSemaphoreGive(app_loader_mutex);
+        uflake_mutex_unlock(app_loader_mutex);
         return UFLAKE_OK;
     }
 
@@ -347,7 +347,7 @@ uflake_result_t app_loader_pause(uint32_t app_id)
 
     app->state = APP_STATE_PAUSED;
 
-    xSemaphoreGive(app_loader_mutex);
+    uflake_mutex_unlock(app_loader_mutex);
     return UFLAKE_OK;
 }
 
@@ -356,18 +356,18 @@ uflake_result_t app_loader_resume(uint32_t app_id)
     if (!initialized)
         return UFLAKE_ERROR;
 
-    xSemaphoreTake(app_loader_mutex, portMAX_DELAY);
+    uflake_mutex_lock(app_loader_mutex, UINT32_MAX);
 
     app_descriptor_t *app = find_app_by_id(app_id);
     if (!app)
     {
-        xSemaphoreGive(app_loader_mutex);
+        uflake_mutex_unlock(app_loader_mutex);
         return UFLAKE_ERROR_NOT_FOUND;
     }
 
     if (app->state != APP_STATE_PAUSED)
     {
-        xSemaphoreGive(app_loader_mutex);
+        uflake_mutex_unlock(app_loader_mutex);
         return UFLAKE_OK;
     }
 
@@ -381,7 +381,7 @@ uflake_result_t app_loader_resume(uint32_t app_id)
     app->state = APP_STATE_RUNNING;
     current_app_id = app_id;
 
-    xSemaphoreGive(app_loader_mutex);
+    uflake_mutex_unlock(app_loader_mutex);
     return UFLAKE_OK;
 }
 
@@ -394,12 +394,12 @@ uflake_result_t app_loader_get_apps(app_descriptor_t **apps, uint32_t *count)
     if (!initialized || !apps || !count)
         return UFLAKE_ERROR_INVALID_PARAM;
 
-    xSemaphoreTake(app_loader_mutex, portMAX_DELAY);
+    uflake_mutex_lock(app_loader_mutex, UINT32_MAX);
 
     *apps = app_registry;
     *count = app_count;
 
-    xSemaphoreGive(app_loader_mutex);
+    uflake_mutex_unlock(app_loader_mutex);
     return UFLAKE_OK;
 }
 
@@ -408,9 +408,9 @@ app_descriptor_t *app_loader_get_app(uint32_t app_id)
     if (!initialized)
         return NULL;
 
-    xSemaphoreTake(app_loader_mutex, portMAX_DELAY);
+    uflake_mutex_lock(app_loader_mutex, UINT32_MAX);
     app_descriptor_t *app = find_app_by_id(app_id);
-    xSemaphoreGive(app_loader_mutex);
+    uflake_mutex_unlock(app_loader_mutex);
 
     return app;
 }
@@ -420,19 +420,19 @@ uint32_t app_loader_find_by_name(const char *name)
     if (!initialized || !name)
         return 0;
 
-    xSemaphoreTake(app_loader_mutex, portMAX_DELAY);
+    uflake_mutex_lock(app_loader_mutex, UINT32_MAX);
 
     for (uint32_t i = 0; i < app_count; i++)
     {
         if (strcmp(app_registry[i].manifest.name, name) == 0)
         {
             uint32_t app_id = app_registry[i].app_id;
-            xSemaphoreGive(app_loader_mutex);
+            uflake_mutex_unlock(app_loader_mutex);
             return app_id;
         }
     }
 
-    xSemaphoreGive(app_loader_mutex);
+    uflake_mutex_unlock(app_loader_mutex);
     return 0;
 }
 

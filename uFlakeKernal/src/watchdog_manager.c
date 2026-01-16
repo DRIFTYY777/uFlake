@@ -1,6 +1,6 @@
 #include "watchdog_manager.h"
-#include "../memory/memory_manager.h"
-#include "../panic/panic_handler.h"
+#include "memory_manager.h"
+#include "panic_handler.h"
 #include "esp_log.h"
 #include "esp_task_wdt.h"
 

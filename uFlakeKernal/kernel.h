@@ -32,18 +32,19 @@ extern "C"
     typedef struct uflake_thread_t uflake_thread_t;
 
 //  Move subsystem includes AFTER forward declarations
-#include "memory/memory_manager.h"
-#include "scheduler/scheduler.h"
-#include "sync/synchronization.h"
-#include "crypto/crypto_engine.h"
-#include "logging/logger.h"
-#include "panic/panic_handler.h"
-#include "buffer/buffer_manager.h"
-#include "timer/timer_manager.h"
-#include "ipc/message_queue.h"
-#include "watchdog/watchdog_manager.h"
-#include "event/event_manager.h"
-#include "resource/resource_manager.h"
+#include "memory_manager.h"
+#include "scheduler.h"
+#include "synchronization.h"
+#include "crypto_engine.h"
+#include "logger.h"
+#include "panic_handler.h"
+#include "buffer_manager.h"
+#include "timer_manager.h"
+#include "message_queue.h"
+#include "watchdog_manager.h"
+#include "event_manager.h"
+#include "resource_manager.h"
+#include "hw_auth.h"
 
 // Kernel configuration
 #define UFLAKE_MAX_PROCESSES 16
@@ -76,6 +77,12 @@ extern "C"
     uflake_result_t uflake_kernel_shutdown(void);
     kernel_state_t uflake_kernel_get_state(void);
     uint32_t uflake_kernel_get_tick_count(void);
+
+    // Kernel delay functions (hardware timer based)
+    void uflake_kernel_delay(uint32_t ticks);
+    void uflake_kernel_delay_ms(uint32_t milliseconds);
+    void uflake_kernel_delay_us(uint32_t microseconds);
+    uint64_t uflake_kernel_get_time_us(void); // Hardware timer microseconds
 
     // ISR context detection (CRITICAL for hardware interrupts)
     static inline bool uflake_kernel_is_in_isr(void)

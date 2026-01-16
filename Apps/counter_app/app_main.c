@@ -52,6 +52,13 @@ void counter_app_main(void)
         // display_clear();
         // display_printf("Counter: %d\n\nHold Right+Back\nto exit", counter);
 
+        // Delete the app when counter reaches 200
+        if (counter > 200)
+        {
+            ESP_LOGI(TAG, "Counter reached 200, exiting app.");
+            break; // Exit the loop to terminate the app
+        }
+
         // Sleep for 1 second
         vTaskDelay(pdMS_TO_TICKS(1000));
 

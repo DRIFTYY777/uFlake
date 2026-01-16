@@ -5,6 +5,9 @@ nvs,         data, nvs,      0x9000,   24K,
 otadata,     data, ota,      0xf000,   8K,
 phy_init,    data, phy,      0x11000,  4K,
 
+# Secure certificate partition (for esp_secure_cert_mgr)
+esp_secure_cert, data, 0x3F, 0x12000,  4K,
+
 # Dual OTA partitions for firmware updates
 ota_0,       app,  ota_0,    0x20000,  1536K,
 ota_1,       app,  ota_1,    0x1A0000, 1536K,

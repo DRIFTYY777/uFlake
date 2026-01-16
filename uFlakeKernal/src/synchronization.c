@@ -1,5 +1,5 @@
 #include "synchronization.h"
-#include "../memory/memory_manager.h"
+#include "memory_manager.h"
 #include "esp_log.h"
 
 static const char *TAG = "SYNC";
@@ -194,4 +194,88 @@ uflake_result_t uflake_semaphore_destroy(uflake_semaphore_t *semaphore)
 
     uflake_free(semaphore);
     return UFLAKE_OK;
+}
+
+// Generic FreeRTOS wrapper functions
+uflake_result_t uflake_semaphore_take_handle(SemaphoreHandle_t handle, uint32_t timeout_ms)
+{
+    if (!handle)
+        return UFLAKE_ERROR_INVALID_PARAM;
+
+    TickType_t timeout_ticks = (timeout_ms == UINT32_MAX) ? portMAX_DELAY : pdMS_TO_TICKS(timeout_ms);
+
+    if (xSemaphoreTake(handle, timeout_ticks) == pdTRUE)
+    {
+        return UFLAKE_OK;
+    }
+
+    return UFLAKE_ERROR_TIMEOUT;
+}
+
+uflake_result_t uflake_semaphore_give_handle(SemaphoreHandle_t handle)
+{
+    if (!handle)
+        return UFLAKE_ERROR_INVALID_PARAM;
+
+    // ISR-SAFE: Auto-detect context
+    if (uflake_kernel_is_in_isr())
+    {
+        BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+        if (xSemaphoreGiveFromISR(handle, &xHigherPriorityTaskWoken) == pdTRUE)
+        {
+            portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+            return UFLAKE_OK;
+        }
+        return UFLAKE_ERROR;
+    }
+
+    // Normal context
+    if (xSemaphoreGive(handle) == pdTRUE)
+    {
+        return UFLAKE_OK;
+    }
+
+    return UFLAKE_ERROR;
+}
+
+uflake_result_t uflake_mutex_take_handle(SemaphoreHandle_t handle, uint32_t timeout_ms)
+{
+    if (!handle)
+        return UFLAKE_ERROR_INVALID_PARAM;
+
+    // Cannot use mutex from ISR
+    if (uflake_kernel_is_in_isr())
+    {
+        ESP_LOGE(TAG, "FATAL: Attempted to take mutex from ISR!");
+        return UFLAKE_ERROR;
+    }
+
+    TickType_t timeout_ticks = (timeout_ms == UINT32_MAX) ? portMAX_DELAY : pdMS_TO_TICKS(timeout_ms);
+
+    if (xSemaphoreTake(handle, timeout_ticks) == pdTRUE)
+    {
+        return UFLAKE_OK;
+    }
+
+    return UFLAKE_ERROR_TIMEOUT;
+}
+
+uflake_result_t uflake_mutex_give_handle(SemaphoreHandle_t handle)
+{
+    if (!handle)
+        return UFLAKE_ERROR_INVALID_PARAM;
+
+    // Cannot use mutex from ISR
+    if (uflake_kernel_is_in_isr())
+    {
+        ESP_LOGE(TAG, "FATAL: Attempted to give mutex from ISR!");
+        return UFLAKE_ERROR;
+    }
+
+    if (xSemaphoreGive(handle) == pdTRUE)
+    {
+        return UFLAKE_OK;
+    }
+
+    return UFLAKE_ERROR;
 }

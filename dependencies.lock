@@ -1,4 +1,14 @@
 dependencies:
+  espressif/esp_secure_cert_mgr:
+    component_hash: 29248e402b2014394228b289a3c02fdb1dc43168ef18fc83449a868dfbc2341f
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=4.3'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 2.8.0
   espressif/esp_tinyusb:
     component_hash: 6f1f0c140990bf27a86611e3c1f47f9fa8468bffc3bf1eb6d551cb09f31f8908
     dependencies:
@@ -45,9 +55,10 @@ dependencies:
       type: service
     version: 9.4.0
 direct_dependencies:
+- espressif/esp_secure_cert_mgr
 - espressif/esp_tinyusb
 - idf
 - lvgl/lvgl
-manifest_hash: 440c3049115ffdeabbe4dbdc4ecf6ba7422274a8ac03f3ebc44143712ef375d9
+manifest_hash: 3d479aaee0be9b47e87745b35de1f00532736cb0e841cae34a3afa7384581ab3
 target: esp32s3
 version: 2.0.0

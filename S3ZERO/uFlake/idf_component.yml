@@ -7,3 +7,4 @@ dependencies:
   # Example:
   lvgl/lvgl: ^9.4.0
   esp_tinyusb: "~2.0.0"
+  espressif/esp_secure_cert_mgr: ^2.8.0
