@@ -42,9 +42,6 @@ idf_component_register(
         uLibraries
         lvgl__lvgl
         ${APP_COMPONENTS}
-
-
-
         
     PRIV_REQUIRES
         esp_pm

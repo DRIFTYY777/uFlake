@@ -53,9 +53,9 @@ void counter_app_main(void)
         // display_printf("Counter: %d\n\nHold Right+Back\nto exit", counter);
 
         // Delete the app when counter reaches 200
-        if (counter > 200)
+        if (counter > 50)
         {
-            ESP_LOGI(TAG, "Counter reached 200, exiting app.");
+            ESP_LOGI(TAG, "Counter reached %d, exiting app.", counter);
             break; // Exit the loop to terminate the app
         }
 

@@ -21,8 +21,7 @@ static const app_manifest_t launcher_manifest = {
     .priority = 10,
     .requires_gui = true,
     .requires_sdcard = false,
-    .requires_network = false
-};
+    .requires_network = false};
 
 // Forward declare entry point
 void launcher_app_main(void);
@@ -31,8 +30,7 @@ void launcher_app_main(void);
 const app_bundle_t launcher_app = {
     .manifest = &launcher_manifest,
     .entry_point = launcher_app_main,
-    .is_launcher = true
-};
+    .is_launcher = true};
 
 // ============================================================================
 // APP ENTRY POINT

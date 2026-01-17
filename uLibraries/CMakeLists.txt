@@ -3,18 +3,17 @@
 
 idf_component_register(
     SRCS 
-        #"st7789/ST7789_driver.c"
-        #"st7789/ST7789_lvgl.c"
+        "st7789/ST7789.c"
         "pca9555/PCA9555.c"
         "sdCard/sdCard.c"
         "nrf24/nrf24.c"
     
     INCLUDE_DIRS 
         "."
-        #"st7789"
         "pca9555"
         "sdCard"
         "nrf24"
+        "st7789"
     
     REQUIRES 
         driver
@@ -25,7 +24,8 @@ idf_component_register(
         fatfs 
         hal
         uFlakeHAL
-        uFlakeKernal 
+        uFlakeKernal
+        lvgl__lvgl
 
     PRIV_REQUIRES
         esp_hw_support
