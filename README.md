@@ -1,69 +1,106 @@
-| Supported Targets | ESP32 | ESP32-C2 | ESP32-C3 | ESP32-C5 | ESP32-C6 | ESP32-C61 | ESP32-H2 | ESP32-H21 | ESP32-P4 | ESP32-S2 | ESP32-S3 |
-| ----------------- | ----- | -------- | -------- | -------- | -------- | --------- | -------- | --------- | -------- | -------- | -------- |
+# uFlake OS
 
-# Blink Example
+A lightweight, modular real-time operating system built on ESP-IDF for ESP32-S3 microcontrollers with advanced peripheral support and LVGL-based GUI.
 
-(See the README.md file in the upper level 'examples' directory for more information about examples.)
+## Features
 
-This example demonstrates how to blink a LED by using the GPIO driver or using the [led_strip](https://components.espressif.com/component/espressif/led_strip) library if the LED is addressable e.g. [WS2812](https://cdn-shop.adafruit.com/datasheets/WS2812B.pdf). The `led_strip` library is installed via [component manager](main/idf_component.yml).
+- **Custom Kernel**: Built on top of FreeRTOS with enhanced subsystems
+    - Process & thread management with priority scheduling
+    - Memory manager supporting Internal RAM, PSRAM, and DMA-capable memory
+    - Message queue system for inter-process communication
+    - Event-driven architecture
+    - Timer management with high-resolution microsecond delays
+    - Watchdog monitoring
+    - Cryptographic engine integration
+    - Resource and buffer management
+    - Panic handler with recovery
 
-## How to Use Example
+- **Hardware Abstraction Layer (HAL)**
+    - I2C bus manager with multi-device support
+    - SPI bus manager (dual SPI support)
+    - UART subsystem
+    - NVS (Non-Volatile Storage) wrapper
+    - SD Card interface
+    - NRF24L01+ wireless module support
+    - PCA9555 I/O expander support
+    - ST7789 display driver
 
-Before project configuration and build, be sure to set the correct chip target using `idf.py set-target <chip_name>`.
+- **Graphics Subsystem**
+    - LVGL 9.x integration
+    - Hardware-accelerated display rendering
+    - Double-buffered display output
+    - DMA-optimized buffer management
+    - Touch input support via I/O expander
 
-### Hardware Required
+- **Application Framework**
+    - Dynamic app loading system
+    - App registry with versioning
+    - Modular component architecture
+    - Hot-reload capable
 
-* A development board with normal LED or addressable LED on-board (e.g., ESP32-S3-DevKitC, ESP32-C6-DevKitC etc.)
-* A USB cable for Power supply and programming
+## Hardware Requirements
 
-See [Development Boards](https://www.espressif.com/en/products/devkits) for more information about it.
+- ESP32-S3 microcontroller
+- ST7789 TFT display (240x320 or 320x240)
+- SD Card module (SPI)
+- NRF24L01+ wireless module (optional)
+- PCA9555 I/O expander (for input)
+- PSRAM (recommended for LVGL)
 
-### Configure the Project
+## Building
 
-Open the project configuration menu (`idf.py menuconfig`).
+```bash
+# Set up ESP-IDF environment
+. $HOME/esp/esp-idf/export.sh
 
-In the `Example Configuration` menu:
+# Configure project
+idf.py menuconfig
 
-* Select the LED type in the `Blink LED type` option.
-  * Use `GPIO` for regular LED
-  * Use `LED strip` for addressable LED
-* If the LED type is `LED strip`, select the backend peripheral
-  * `RMT` is only available for ESP targets with RMT peripheral supported
-  * `SPI` is available for all ESP targets
-* Set the GPIO number used for the signal in the `Blink GPIO number` option.
-* Set the blinking period in the `Blink period in ms` option.
+# Build
+idf.py build
 
-### Build and Flash
-
-Run `idf.py -p PORT flash monitor` to build, flash and monitor the project.
-
-(To exit the serial monitor, type ``Ctrl-]``.)
-
-See the [Getting Started Guide](https://docs.espressif.com/projects/esp-idf/en/latest/get-started/index.html) for full steps to configure and use ESP-IDF to build projects.
-
-## Example Output
-
-As you run the example, you will see the LED blinking, according to the previously defined period. For the addressable LED, you can also change the LED color by setting the `led_strip_set_pixel(led_strip, 0, 16, 16, 16);` (LED Strip, Pixel Number, Red, Green, Blue) with values from 0 to 255 in the [source file](main/blink_example_main.c).
-
-```text
-I (315) example: Example configured to blink addressable LED!
-I (325) example: Turning the LED OFF!
-I (1325) example: Turning the LED ON!
-I (2325) example: Turning the LED OFF!
-I (3325) example: Turning the LED ON!
-I (4325) example: Turning the LED OFF!
-I (5325) example: Turning the LED ON!
-I (6325) example: Turning the LED OFF!
-I (7325) example: Turning the LED ON!
-I (8325) example: Turning the LED OFF!
+# Flash and monitor
+idf.py flash monitor
 ```
 
-Note: The color order could be different according to the LED model.
+## Project Structure
 
-The pixel number indicates the pixel position in the LED strip. For a single LED, use 0.
+```
+uFlake/
+├── uFlakeCore/         # Core OS initialization
+├── uFlakeKernal/       # Kernel subsystems
+├── uFlakeHAL/          # Hardware abstraction layer
+├── uGraphics/          # GUI subsystem (uGui)
+├── uLibraries/         # Driver libraries
+├── uAppLoader/         # Application loader
+├── Apps/               # User applications
+└── S3ZERO/             # Board-specific code
+```
 
-## Troubleshooting
+## Memory Management
 
-* If the LED isn't blinking, check the GPIO or the LED type selection in the `Example Configuration` menu.
+uFlake provides three memory allocation types:
+- **UFLAKE_MEM_INTERNAL**: Fast internal RAM
+- **UFLAKE_MEM_SPIRAM**: Large PSRAM for buffers
+- **UFLAKE_MEM_DMA**: DMA-capable memory for peripherals
 
-For any technical queries, please open an [issue](https://github.com/espressif/esp-idf/issues) on GitHub. We will get back to you soon.
+## API Example
+
+```c
+// Create a process
+uint32_t pid;
+uflake_process_create("MyTask", task_function, NULL, 
+                                            4096, PROCESS_PRIORITY_NORMAL, &pid);
+
+// Allocate memory
+void *buffer = uflake_malloc(1024, UFLAKE_MEM_INTERNAL);
+
+// Create message queue
+uflake_msgqueue_t *queue;
+uflake_msgqueue_create("MyQueue", 10, true, &queue);
+
+// Send message
+uflake_message_t msg = {.type = MSG_TYPE_DATA};
+uflake_msgqueue_send(queue, &msg, 1000);
+```
+

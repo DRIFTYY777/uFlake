@@ -37,7 +37,7 @@ uflake_result_t uflake_msgqueue_create(const char *name, uint32_t max_messages,
             xSemaphoreGive(msgqueue_mutex);
             return UFLAKE_ERROR;
         }
-        existing = existing->next;  // ✅ Fixed: Use proper next pointer
+        existing = existing->next;
     }
 
     uflake_msgqueue_t *new_queue = (uflake_msgqueue_t *)uflake_malloc(sizeof(uflake_msgqueue_t), UFLAKE_MEM_INTERNAL);
@@ -64,7 +64,7 @@ uflake_result_t uflake_msgqueue_create(const char *name, uint32_t max_messages,
     uflake_process_t *current_process = uflake_process_get_current();
     new_queue->owner_pid = current_process ? current_process->pid : 0;
 
-    // ✅ Fixed: Proper linked list insertion
+    // Proper linked list insertion
     new_queue->next = queue_list;
     queue_list = new_queue;
 
@@ -83,8 +83,7 @@ uflake_result_t uflake_msgqueue_send(uflake_msgqueue_t *queue, const uflake_mess
         return UFLAKE_ERROR_INVALID_PARAM;
 
     uflake_message_t msg_copy = *message;
-    
-    // ✅ ISR-SAFE: Protect message ID increment
+
     if (uflake_kernel_is_in_isr())
     {
         msg_copy.message_id = next_message_id++;
@@ -93,7 +92,7 @@ uflake_result_t uflake_msgqueue_send(uflake_msgqueue_t *queue, const uflake_mess
 
         if (xQueueSendFromISR(queue->queue_handle, &msg_copy, &xHigherPriorityTaskWoken) == pdTRUE)
         {
-            // ✅ Atomic increment (single instruction on ESP32)
+            //  Atomic increment (single instruction on ESP32)
             queue->message_count++;
             portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
             return UFLAKE_OK;
@@ -101,7 +100,7 @@ uflake_result_t uflake_msgqueue_send(uflake_msgqueue_t *queue, const uflake_mess
         return UFLAKE_ERROR_TIMEOUT;
     }
 
-    // ✅ Fixed: Protect message ID and count together
+    // Protect message ID and count together
     xSemaphoreTake(msgqueue_mutex, portMAX_DELAY);
     msg_copy.message_id = next_message_id++;
     msg_copy.timestamp = uflake_kernel_get_tick_count();
@@ -122,18 +121,20 @@ uflake_result_t uflake_msgqueue_send(uflake_msgqueue_t *queue, const uflake_mess
     return UFLAKE_ERROR_TIMEOUT;
 }
 
-// ✅ Add ISR-safe receive
-uflake_result_t uflake_msgqueue_receive_from_isr(uflake_msgqueue_t* queue, uflake_message_t* message) {
-    if (!queue || !message) return UFLAKE_ERROR_INVALID_PARAM;
-    
+uflake_result_t uflake_msgqueue_receive_from_isr(uflake_msgqueue_t *queue, uflake_message_t *message)
+{
+    if (!queue || !message)
+        return UFLAKE_ERROR_INVALID_PARAM;
+
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    
-    if (xQueueReceiveFromISR(queue->queue_handle, message, &xHigherPriorityTaskWoken) == pdTRUE) {
-        queue->message_count--;  // Atomic decrement
+
+    if (xQueueReceiveFromISR(queue->queue_handle, message, &xHigherPriorityTaskWoken) == pdTRUE)
+    {
+        queue->message_count--; // Atomic decrement
         portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
         return UFLAKE_OK;
     }
-    
+
     return UFLAKE_ERROR_TIMEOUT;
 }
 
@@ -143,8 +144,8 @@ uflake_result_t uflake_msgqueue_receive(uflake_msgqueue_t *queue, uflake_message
     if (!queue || !message)
         return UFLAKE_ERROR_INVALID_PARAM;
 
-    // ✅ ISR-safe receive
-    if (uflake_kernel_is_in_isr()) {
+    if (uflake_kernel_is_in_isr())
+    {
         return uflake_msgqueue_receive_from_isr(queue, message);
     }
 
@@ -194,7 +195,6 @@ uflake_result_t uflake_msgqueue_find(const char *name, uflake_msgqueue_t **queue
 
     xSemaphoreTake(msgqueue_mutex, portMAX_DELAY);
 
-    // ✅ Fixed: Proper linked list search
     uflake_msgqueue_t *current = queue_list;
     while (current)
     {
@@ -218,7 +218,6 @@ uflake_result_t uflake_msgqueue_destroy(uflake_msgqueue_t *queue)
 
     xSemaphoreTake(msgqueue_mutex, portMAX_DELAY);
 
-    // ✅ Fixed: Proper linked list removal
     uflake_msgqueue_t *prev = NULL;
     uflake_msgqueue_t *current = queue_list;
 
@@ -256,54 +255,59 @@ uflake_result_t uflake_msgqueue_destroy(uflake_msgqueue_t *queue)
 
 void uflake_messagequeue_process(void)
 {
-    if (!msgqueue_mutex) return;
-    
+    if (!msgqueue_mutex)
+        return;
+
     static uint32_t last_cleanup_tick = 0;
     uint32_t current_tick = xTaskGetTickCount();
-    
+
     // Perform cleanup every 5 seconds
-    if ((current_tick - last_cleanup_tick) < pdMS_TO_TICKS(5000)) {
+    if ((current_tick - last_cleanup_tick) < pdMS_TO_TICKS(5000))
+    {
         return;
     }
-    
+
     last_cleanup_tick = current_tick;
-    
+
     xSemaphoreTake(msgqueue_mutex, portMAX_DELAY);
-    
+
     uflake_msgqueue_t *current = queue_list;
     uint32_t total_queues = 0;
     uint32_t total_messages = 0;
     uint32_t empty_queues = 0;
-    
+
     while (current)
     {
         total_queues++;
         total_messages += current->message_count;
-        
+
         // Check if queue is empty
-        if (current->message_count == 0) {
+        if (current->message_count == 0)
+        {
             empty_queues++;
         }
-        
+
         // Check if queue is nearly full (>90% capacity)
-        if (current->message_count > (current->max_messages * 9 / 10)) {
+        if (current->message_count > (current->max_messages * 9 / 10))
+        {
             ESP_LOGW(TAG, "Queue '%s' is nearly full: %d/%d messages",
                      current->name, (int)current->message_count, (int)current->max_messages);
         }
-        
+
         // Sync message count with actual queue state
         UBaseType_t actual_count = uxQueueMessagesWaiting(current->queue_handle);
-        if (actual_count != current->message_count) {
+        if (actual_count != current->message_count)
+        {
             ESP_LOGW(TAG, "Queue '%s' count mismatch - correcting from %d to %d",
                      current->name, (int)current->message_count, (int)actual_count);
             current->message_count = actual_count;
         }
-        
+
         current = current->next;
     }
-    
+
     xSemaphoreGive(msgqueue_mutex);
-    
+
     // Log statistics periodically
     ESP_LOGD(TAG, "Message Queue Stats: %d queues, %d total messages, %d empty",
              (int)total_queues, (int)total_messages, (int)empty_queues);

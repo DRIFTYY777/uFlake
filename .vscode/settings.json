@@ -10,5 +10,10 @@
     "IDF_TARGET": "esp32s3"
   },
   "idf.portWin": "COM3",
-  "idf.flashType": "UART"
+  "idf.flashType": "JTAG",
+  "idf.adapterTargetName": "esp32s3",
+  "idf.openOcdLaunchArgs": [
+    "-f",
+    "board/esp32s3-builtin.cfg"
+  ]
 }

@@ -40,7 +40,8 @@ idf_component_register(
         uFlakeHAL
         uAppLoader
         uLibraries
-        lvgl__lvgl
+        uGraphics
+        
         ${APP_COMPONENTS}
         
     PRIV_REQUIRES

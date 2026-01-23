@@ -1,0 +1,44 @@
+2026-01-23 19:46:07,169 - Debug Adapter (main) - CRITICAL - Debug adapter -> Extension: DEBUG_ADAPTER_STARTED
+2026-01-23 19:46:07,172 - Debug Adapter (main) - CRITICAL - Debug adapter -> Extension: DEBUG_ADAPTER_READY2CONNECT
+2026-01-23 19:46:12,233 - Gdb - ERROR - Failed to config GDB (Failed to wait for completion of command "-gdb-set mi-async on" / 5!)!
+2026-01-23 19:46:12,233 - Debug Adapter (main) - ERROR - [Errno 22] Invalid argument
+Traceback (most recent call last):
+  File "C:\Users\dhima\.espressif\python_env\idf5.5_py3.11_env\Lib\site-packages\esp_debug_backend\gdb.py", line 66, in __init__
+    self.gdb_set("mi-async", "on")
+  File "C:\Users\dhima\.espressif\python_env\idf5.5_py3.11_env\Lib\site-packages\esp_debug_backend\gdb.py", line 423, in gdb_set
+    res, _ = self._mi_cmd_run("-gdb-set %s %s" % (var, val))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\dhima\.espressif\python_env\idf5.5_py3.11_env\Lib\site-packages\esp_debug_backend\gdb.py", line 206, in _mi_cmd_run
+    raise DebuggerTargetStateTimeoutError(
+esp_debug_backend.defs.DebuggerTargetStateTimeoutError: Failed to wait for completion of command "-gdb-set mi-async on" / 5!
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "c:\Users\dhima\.vscode\extensions\espressif.esp-idf-extension-1.11.0\esp_debug_adapter\debug_adapter\command_processor.py", line 52, in __call__
+    on_request(protocol_message)
+  File "c:\Users\dhima\.vscode\extensions\espressif.esp-idf-extension-1.11.0\esp_debug_adapter\debug_adapter\command_processor.py", line 75, in on_initialize_request
+    raise e
+  File "c:\Users\dhima\.vscode\extensions\espressif.esp-idf-extension-1.11.0\esp_debug_adapter\debug_adapter\command_processor.py", line 70, in on_initialize_request
+    self.da.adapter_init()
+  File "c:\Users\dhima\.vscode\extensions\espressif.esp-idf-extension-1.11.0\esp_debug_adapter\debug_adapter\debug_adapter.py", line 329, in adapter_init
+    raise e
+  File "c:\Users\dhima\.vscode\extensions\espressif.esp-idf-extension-1.11.0\esp_debug_adapter\debug_adapter\debug_adapter.py", line 325, in adapter_init
+    self.start_gdb()
+  File "c:\Users\dhima\.vscode\extensions\espressif.esp-idf-extension-1.11.0\esp_debug_adapter\debug_adapter\debug_adapter.py", line 678, in start_gdb
+    raise e
+  File "c:\Users\dhima\.vscode\extensions\espressif.esp-idf-extension-1.11.0\esp_debug_adapter\debug_adapter\debug_adapter.py", line 652, in start_gdb
+    self._gdb = dbg.create_gdb(chip_name=self.args.device_name,
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\dhima\.espressif\python_env\idf5.5_py3.11_env\Lib\site-packages\esp_debug_backend\__init__.py", line 85, in create_gdb
+    obj = GdbEspXtensa(**gdb_init_args)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\dhima\.espressif\python_env\idf5.5_py3.11_env\Lib\site-packages\esp_debug_backend\hw_specific\esp.py", line 224, in __init__
+    GdbXtensa.__init__(self, gdb_path=gdb_path, remote_target=remote_target,
+  File "C:\Users\dhima\.espressif\python_env\idf5.5_py3.11_env\Lib\site-packages\esp_debug_backend\hw_specific\xtensa.py", line 70, in __init__
+    super(GdbXtensa, self).__init__(gdb_path=gdb_path, remote_target=remote_target, extended_remote_mode=extended_remote_mode,
+  File "C:\Users\dhima\.espressif\python_env\idf5.5_py3.11_env\Lib\site-packages\esp_debug_backend\gdb.py", line 76, in __init__
+    out = self._gdbmi.gdb_process.stdout.read()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: [Errno 22] Invalid argument
+2026-01-23 19:46:12,235 - Debug Adapter (main) - CRITICAL - Debug adapter -> Extension: DEBUG_ADAPTER_STOPPED

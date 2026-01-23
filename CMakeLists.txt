@@ -14,8 +14,8 @@ set(EXTRA_COMPONENT_DIRS
     "uFlakeHAL"
     "uLibraries"
     "uAppLoader"
+    "uGraphics"
     ${APP_DIRS}
-    # "S3ZERO/boot_screen"
 )
 
 # Include ESP-IDF build system
