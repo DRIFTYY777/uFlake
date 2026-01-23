@@ -10,7 +10,7 @@ extern "C"
 
     /**
      * @brief Initialize the uGUI subsystem with LVGL
-     * 
+     *
      * This initializes the display, LVGL, and creates a simple demo UI.
      */
     void uGui_init(void);
