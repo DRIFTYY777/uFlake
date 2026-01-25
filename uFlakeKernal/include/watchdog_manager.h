@@ -30,7 +30,6 @@ extern "C"
                                            uint32_t timeout_ms, uint32_t *watchdog_id);
     uflake_result_t uflake_watchdog_feed_by_id(uint32_t watchdog_id);
     uflake_result_t uflake_watchdog_delete(uint32_t watchdog_id);
-    void uflake_watchdog_feed(void);
     void uflake_watchdog_check_timeouts(void);
 
 #ifdef __cplusplus

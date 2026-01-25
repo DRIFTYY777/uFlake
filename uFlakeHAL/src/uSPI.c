@@ -378,6 +378,16 @@ esp_err_t uspi_transfer(spi_device_handle_t handle, const uint8_t *tx_buffer,
     return ret;
 }
 
+esp_err_t uspi_queue_trans(spi_device_handle_t handle, spi_transaction_t *trans_desc, TickType_t ticks_to_wait)
+{
+    return spi_device_queue_trans(handle, trans_desc, ticks_to_wait);
+}
+
+esp_err_t uspi_get_trans_result(spi_device_handle_t handle, spi_transaction_t **trans_desc, TickType_t ticks_to_wait)
+{
+    return spi_device_get_trans_result(handle, trans_desc, ticks_to_wait);
+}
+
 // ============================================================================
 // COMMAND/ADDRESS/DATA OPERATIONS
 // ============================================================================

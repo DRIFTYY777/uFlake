@@ -85,6 +85,10 @@ extern "C"
     esp_err_t uspi_transfer(spi_device_handle_t handle, const uint8_t *tx_buffer,
                             uint8_t *rx_buffer, size_t length, uint32_t timeout_ms);
 
+    esp_err_t uspi_queue_trans(spi_device_handle_t handle, spi_transaction_t *trans_desc, TickType_t ticks_to_wait);
+
+    esp_err_t uspi_get_trans_result(spi_device_handle_t handle, spi_transaction_t **trans_desc, TickType_t ticks_to_wait);
+
     // Command/Address/Data operations (for displays, flash, etc.)
     esp_err_t uspi_write_cmd(spi_device_handle_t handle, uint8_t cmd);
     esp_err_t uspi_write_cmd_data(spi_device_handle_t handle, uint8_t cmd,

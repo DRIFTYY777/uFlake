@@ -37,6 +37,7 @@ idf_component_register(
         bootloader_support
         esp_partition
         espressif__esp_secure_cert_mgr
+        nvs_flash
         
         
     PRIV_REQUIRES

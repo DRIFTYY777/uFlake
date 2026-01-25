@@ -12,32 +12,6 @@
 
 static const char *TAG = "ST7789_LVGL";
 
-#define ST7789_SPI_QUEUE_SIZE 7
-#define ST7789_CMD_CASET 0x2A
-#define ST7789_CMD_RASET 0x2B
-#define ST7789_CMD_RAMWR 0x2C
-#define ST7789_CMD_SLPIN 0x10
-#define ST7789_CMD_SWRESET 0x01
-#define ST7789_CMD_SLPOUT 0x11
-#define ST7789_CMD_MADCTL 0x36
-#define ST7789_CMD_COLMOD 0x3A
-#define ST7789_CMD_INVON 0x21
-#define ST7789_CMD_INVOFF 0x20
-#define ST7789_CMD_PORCTRL 0xB2
-#define ST7789_CMD_GCTRL 0xB7
-#define ST7789_CMD_VCOMS 0xBB
-#define ST7789_CMD_VDVVRHEN 0xC2
-#define ST7789_CMD_VRHSET 0xC3
-#define ST7789_CMD_VDVSET 0xC4
-#define ST7789_CMD_PWCTRL1 0xD0
-#define ST7789_CMD_FRCTR2 0xC6
-#define ST7789_CMD_GAMSET 0x26
-#define ST7789_CMD_PVGAMCTRL 0xE0
-#define ST7789_CMD_NVGAMCTRL 0xE1
-#define ST7789_CMD_RAMCTRL 0xB0
-#define ST7789_CMD_DISPON 0x29
-#define ST7789_CMDLIST_END 0x00
-
 static void ST7789_send_cmd(st7789_driver_t *driver, const st7789_command_t *command);
 static void ST7789_config(st7789_driver_t *driver);
 static void ST7789_multi_cmd(st7789_driver_t *driver, const st7789_command_t *sequence);
@@ -104,6 +78,31 @@ bool ST7789_init(st7789_driver_t *driver)
     ST7789_config(driver);
 
     ESP_LOGI(TAG, "Display configured and ready (%dx%d)", driver->display_width, driver->display_height);
+
+    return true;
+}
+
+bool ST7789_deinit(st7789_driver_t *driver)
+{
+    ESP_LOGI(TAG, "Deinitializing ST7789 display...");
+
+    // Remove SPI device
+    esp_err_t ret = uspi_device_remove(driver->spi);
+    if (ret != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Failed to remove SPI device: %s", esp_err_to_name(ret));
+        return false;
+    }
+
+    ESP_LOGI(TAG, "SPI device removed");
+
+    // Free allocated buffer memory
+    if (driver->buffer)
+    {
+        uflake_free(driver->buffer);
+        driver->buffer = NULL;
+        ESP_LOGI(TAG, "Display buffer freed");
+    }
 
     return true;
 }
@@ -242,52 +241,6 @@ void ST7789_invert_display(st7789_driver_t *driver, bool invert)
         {ST7789_CMDLIST_END, 0, 0, NULL},
     };
     ST7789_multi_cmd(driver, init_sequence2);
-}
-
-void drawPixel(st7789_driver_t *driver, int16_t x, int16_t y, uint16_t color)
-{
-    if ((x < 0) || (x >= driver->display_width) || (y < 0) || (y >= driver->display_height))
-    {
-        return;
-    }
-    ST7789_set_window(driver, x, y, x, y);
-    ST7789_fill_area(driver, color, x, y, 1, 1);
-}
-
-void drawCircle(st7789_driver_t *driver, int16_t x0, int16_t y0, int16_t r, uint16_t color)
-{
-    int16_t f = 1 - r;
-    int16_t ddF_x = 1;
-    int16_t ddF_y = -2 * r;
-    int16_t x = 0;
-    int16_t y = r;
-
-    drawPixel(driver, x0, y0 + r, color);
-    drawPixel(driver, x0, y0 - r, color);
-    drawPixel(driver, x0 + r, y0, color);
-    drawPixel(driver, x0 - r, y0, color);
-
-    while (x < y)
-    {
-        if (f >= 0)
-        {
-            y--;
-            ddF_y += 2;
-            f += ddF_y;
-        }
-        x++;
-        ddF_x += 2;
-        f += ddF_x;
-
-        drawPixel(driver, x0 + x, y0 + y, color);
-        drawPixel(driver, x0 - x, y0 + y, color);
-        drawPixel(driver, x0 + x, y0 - y, color);
-        drawPixel(driver, x0 - x, y0 - y, color);
-        drawPixel(driver, x0 + y, y0 + x, color);
-        drawPixel(driver, x0 - y, y0 + x, color);
-        drawPixel(driver, x0 + y, y0 - x, color);
-        drawPixel(driver, x0 - y, y0 - x, color);
-    }
 }
 
 /**********************

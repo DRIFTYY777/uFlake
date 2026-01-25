@@ -17,100 +17,13 @@
 #include "uFlakeAppReg.h"
 
 #include "nrf24.h"
-#include "pca9555.h"
-
+#include "ST7789.h"
 #include "sdCard.h"
 #include "uGui.h"
 
 static const char *TAG = "UFLAKE_CORE";
 
-// Input reader task for button handling
-static void input_read_task(void *arg)
-{
-    ESP_LOGI(TAG, "[INPUT_TASK] Starting input read task");
-
-    // initialize PCA9555 as input
-    init_pca9555_as_input(UI2C_PORT_0, PCA9555_ADDRESS);
-
-    vTaskDelay(pdMS_TO_TICKS(100)); // Wait for PCA9555 to stabilize
-
-    ESP_LOGI(TAG, "[INPUT_TASK] Initialization complete, entering main loop");
-
-    while (1)
-    {
-        // Watchdog is automatically fed by the kernel
-        uint16_t inputs_value = read_pca9555_inputs(UI2C_PORT_0, PCA9555_ADDRESS);
-        if (!((inputs_value >> 0) & 0x01))
-        {
-            ESP_LOGI(TAG, "_Up pressed");
-        }
-
-        if (!((inputs_value >> 1) & 0x01))
-        {
-            ESP_LOGI(TAG, "_Down pressed");
-        }
-
-        if (!((inputs_value >> 2) & 0x01))
-        {
-            ESP_LOGI(TAG, "_Right pressed");
-        }
-
-        if (!((inputs_value >> 3) & 0x01))
-        {
-            ESP_LOGI(TAG, "_Left pressed");
-        }
-
-        if (!((inputs_value >> 4) & 0x01))
-        {
-            // Not used
-        }
-
-        if (!((inputs_value >> 5) & 0x01))
-        {
-            ESP_LOGI(TAG, "_Menu pressed");
-        }
-
-        if (!((inputs_value >> 6) & 0x01))
-        {
-            ESP_LOGI(TAG, "_Back pressed");
-        }
-
-        if (!((inputs_value >> 7) & 0x01))
-        {
-            ESP_LOGI(TAG, "_OK pressed");
-        }
-
-        if (!((inputs_value >> 8) & 0x01))
-        {
-            ESP_LOGI(TAG, "_Home pressed");
-        }
-
-        if (!((inputs_value >> 9) & 0x01))
-        {
-            ESP_LOGI(TAG, "_A pressed");
-        }
-        if (!((inputs_value >> 10) & 0x01))
-        {
-            ESP_LOGI(TAG, "_B pressed");
-        }
-
-        if (!((inputs_value >> 11) & 0x01))
-        {
-            ESP_LOGI(TAG, "_Y pressed");
-        }
-        if (!((inputs_value >> 12) & 0x01))
-        {
-            ESP_LOGI(TAG, "_X pressed");
-        }
-
-        if (!((inputs_value >> 13) & 0x01))
-        {
-            ESP_LOGI(TAG, "_L1 pressed");
-        }
-
-        uflake_process_yield(100); // Yields CPU and feeds watchdog
-    }
-}
+static st7789_driver_t display;
 
 // Configure and initialize SD card
 void config_and_init_sd_card(void)
@@ -118,7 +31,7 @@ void config_and_init_sd_card(void)
     // initialize SD card
     SD_CardConfig sd_config = {};
     sd_config.csPin = GPIO_NUM_39;            // Chip Select pin
-    sd_config.clockSpeedHz = USPI_FREQ_20MHZ; // 40 MHz for initialization
+    sd_config.clockSpeedHz = USPI_FREQ_20MHZ; // 20 MHz for initialization
     sd_config.host = USPI_HOST_SPI2;          // Use SPI2 host
 
     if (!sdCard_init(&sd_config))
@@ -126,6 +39,38 @@ void config_and_init_sd_card(void)
         ESP_LOGE(TAG, "Failed to initialize SD card");
         return;
     }
+}
+
+void config_and_init_display()
+{
+    ESP_LOGI(TAG, "Configuring display...");
+
+    // Configure display structure
+    display.pin_cs = GPIO_NUM_10;
+    display.pin_reset = GPIO_NUM_46;
+    display.pin_dc = GPIO_NUM_14;
+
+    display.display_width = 240;
+    display.display_height = 320;
+    display.orientation = 0;
+    display.spi_host = USPI_HOST_SPI3;
+    display.spi_speed = USPI_FREQ_80MHZ;
+    display.buffer_size = 240 * 20; // 20 lines buffer
+
+    // make gpio 3 output for backlight (In Future we have to use I2C to control backlight brightness)
+    gpio_set_direction(GPIO_NUM_3, GPIO_MODE_OUTPUT);
+    gpio_set_level(GPIO_NUM_3, 1); // turn on backlight
+
+    // Initialize display
+    if (!ST7789_init(&display))
+    {
+        ESP_LOGE(TAG, "Failed to initialize display");
+        return;
+    }
+
+    ST7789_invert_display(&display, false);
+
+    ESP_LOGI(TAG, "Display initialized successfully");
 }
 
 // Configure and initialize NRF24L01+
@@ -149,7 +94,7 @@ void config_and_init_nrf24()
     ESP_LOGI(TAG, "NRF24L01+ initialized successfully");
 
     // check connection
-    if (Nrf24_isConnected(&nrf24_dev))
+    if (!Nrf24_isConnected(&nrf24_dev))
     {
         ESP_LOGI(TAG, "NRF24L01+ is connected");
     }
@@ -161,72 +106,28 @@ void config_and_init_nrf24()
 
 void uflake_core_init(void)
 {
-    printf("Internal heap: %zu bytes\n", (size_t)esp_get_free_heap_size());
-    printf("PSRAM heap: %zu bytes\n",
-           (size_t)heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
-
     // Initialize the kernel
-    if (uflake_kernel_init() != UFLAKE_OK)
-    {
-        ESP_LOGE(TAG, "Failed to initialize uFlake Kernel");
-        return;
-    }
+    uflake_kernel_init();
 
     // Start the kernel
-    if (uflake_kernel_start() != UFLAKE_OK)
-    {
-        ESP_LOGE(TAG, "Failed to start uFlake Kernel");
-        return;
-    }
+    uflake_kernel_start();
 
     // initialize nvs subsystem
-    if (unvs_init() != UFLAKE_OK)
-    {
-        ESP_LOGE(TAG, "Failed to initialize NVS subsystem");
-        return;
-    }
+    unvs_init();
 
     // initialize I2C
-    if (i2c_bus_manager_init(UI2C_PORT_0, GPIO_NUM_8, GPIO_NUM_9, UI2C_DEFAULT_FREQ_HZ) != UFLAKE_OK)
-    {
-        ESP_LOGE(TAG, "Failed to initialize I2C bus");
-        return;
-    }
+    i2c_bus_manager_init(UI2C_PORT_0, GPIO_NUM_8, GPIO_NUM_9, UI2C_DEFAULT_FREQ_HZ);
 
     // INITIALIZE the FIRST SPI BUS  - before adding any devices
     // Need larger transfer size for display (240x40 pixels x 2 bytes = 19200 bytes)
-    if (uspi_bus_init(USPI_HOST_SPI3, GPIO_NUM_11, GPIO_NUM_13, GPIO_NUM_12, 32768) != UFLAKE_OK)
-    {
-        ESP_LOGE(TAG, "Failed to initialize SPI bus");
-        return;
-    }
-
+    uspi_bus_init(USPI_HOST_SPI3, GPIO_NUM_11, GPIO_NUM_13, GPIO_NUM_12, 32768);
     // INITIALIZE the Second SPI BUS FIRST - before adding any devices
-    if (uspi_bus_init(USPI_HOST_SPI2, GPIO_NUM_41, GPIO_NUM_38, GPIO_NUM_40, 4096) != UFLAKE_OK)
-    {
-        ESP_LOGE(TAG, "Failed to initialize SPI bus");
-        return;
-    }
+    uspi_bus_init(USPI_HOST_SPI2, GPIO_NUM_41, GPIO_NUM_38, GPIO_NUM_40, 4096);
 
+    config_and_init_display();
     config_and_init_nrf24();
     config_and_init_sd_card();
-    uGui_init();
-
-    // Create input reader process
-    uint32_t input_pid;
-    uflake_result_t result = uflake_process_create(
-        "InputReader",
-        input_read_task,
-        NULL,
-        4096,
-        PROCESS_PRIORITY_NORMAL,
-        &input_pid);
-
-    if (result != UFLAKE_OK)
-    {
-        ESP_LOGE(TAG, "Failed to create Input Reader process");
-        return;
-    }
+    uGui_init(&display);
 
     register_builtin_apps();
 

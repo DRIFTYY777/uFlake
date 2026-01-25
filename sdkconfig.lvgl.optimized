@@ -1,0 +1,162 @@
+# ============================================================================
+# LVGL Optimized Configuration for uFlake (ESP32-S3 + ST7789 240x320)
+# ============================================================================
+# Apply these settings via: idf.py menuconfig -> Component config -> LVGL
+# Or copy relevant lines to sdkconfig.defaults.esp32s3
+# ============================================================================
+
+# ==================== MEMORY CONFIGURATION ====================
+# Use ESP-IDF heap instead of LVGL's internal allocator (better for PSRAM)
+CONFIG_LV_USE_CLIB_MALLOC=y
+# CONFIG_LV_USE_BUILTIN_MALLOC is not set
+
+# If using LVGL internal allocator, increase size (uses PSRAM if configured)
+# CONFIG_LV_MEM_SIZE_KILOBYTES=128
+
+# Use C library string functions (faster on ESP32)
+CONFIG_LV_USE_CLIB_STRING=y
+# CONFIG_LV_USE_BUILTIN_STRING is not set
+
+CONFIG_LV_USE_CLIB_SPRINTF=y
+# CONFIG_LV_USE_BUILTIN_SPRINTF is not set
+
+# ==================== OS / THREADING ====================
+# Enable FreeRTOS support for proper mutex/thread safety with your kernel
+CONFIG_LV_OS_FREERTOS=y
+# CONFIG_LV_OS_NONE is not set
+
+# ==================== DISPLAY / REFRESH ====================
+# Refresh period: 33ms = ~30 FPS (good balance for ST7789)
+CONFIG_LV_DEF_REFR_PERIOD=33
+
+# DPI for 240x320 ~2.4" display
+CONFIG_LV_DPI_DEF=140
+
+# ==================== COLOR DEPTH (Match ST7789) ====================
+CONFIG_LV_COLOR_DEPTH_16=y
+CONFIG_LV_COLOR_DEPTH=16
+
+# ==================== DRAW ENGINE OPTIMIZATION ====================
+# Only enable RGB565 (your display format) - saves code size
+CONFIG_LV_DRAW_SW_SUPPORT_RGB565=y
+# Disable unused color formats to save ~20KB flash
+# CONFIG_LV_DRAW_SW_SUPPORT_RGB565A8 is not set
+# CONFIG_LV_DRAW_SW_SUPPORT_RGB888 is not set
+# CONFIG_LV_DRAW_SW_SUPPORT_XRGB8888 is not set
+# CONFIG_LV_DRAW_SW_SUPPORT_ARGB8888 is not set
+# CONFIG_LV_DRAW_SW_SUPPORT_ARGB8888_PREMULTIPLIED is not set
+# CONFIG_LV_DRAW_SW_SUPPORT_L8 is not set
+# CONFIG_LV_DRAW_SW_SUPPORT_AL88 is not set
+# CONFIG_LV_DRAW_SW_SUPPORT_A8 is not set
+# CONFIG_LV_DRAW_SW_SUPPORT_I1 is not set
+
+# Use 2 draw units for ESP32-S3 dual-core (parallel rendering)
+CONFIG_LV_DRAW_SW_DRAW_UNIT_CNT=2
+
+# Enable complex drawing (gradients, shadows, etc.)
+CONFIG_LV_DRAW_SW_COMPLEX=y
+
+# Shadow cache: Enable for your glass/blur effects (saves recalculation)
+CONFIG_LV_DRAW_SW_SHADOW_CACHE_SIZE=128
+
+# Circle cache for rounded corners
+CONFIG_LV_DRAW_SW_CIRCLE_CACHE_SIZE=8
+
+# Layer buffer for transparency effects (24KB good for your glass panels)
+CONFIG_LV_DRAW_LAYER_SIMPLE_BUF_SIZE=24576
+
+# Buffer alignment for DMA (ESP32 needs 4-byte alignment)
+CONFIG_LV_DRAW_BUF_ALIGN=4
+CONFIG_LV_DRAW_BUF_STRIDE_ALIGN=4
+CONFIG_LV_ATTRIBUTE_MEM_ALIGN_SIZE=4
+
+# ==================== CACHE / PERFORMANCE ====================
+# Image header cache (speeds up repeated image draws)
+CONFIG_LV_IMAGE_HEADER_CACHE_DEF_CNT=8
+
+# Style cache for faster style lookups
+CONFIG_LV_OBJ_STYLE_CACHE=y
+
+# General cache for decoded images
+CONFIG_LV_CACHE_DEF_SIZE=32768
+
+# ==================== FAST MEMORY (IRAM) ====================
+# Put critical LVGL functions in IRAM for speed
+CONFIG_LV_ATTRIBUTE_FAST_MEM_USE_IRAM=y
+
+# ==================== FONTS (Minimal set) ====================
+# Only enable fonts you actually use
+CONFIG_LV_FONT_MONTSERRAT_14=y
+CONFIG_LV_FONT_MONTSERRAT_16=y
+CONFIG_LV_FONT_DEFAULT_MONTSERRAT_14=y
+# Disable all others to save ~100KB+ flash
+# CONFIG_LV_FONT_MONTSERRAT_8 is not set
+# CONFIG_LV_FONT_MONTSERRAT_10 is not set
+# CONFIG_LV_FONT_MONTSERRAT_12 is not set
+# CONFIG_LV_FONT_MONTSERRAT_18 is not set
+# CONFIG_LV_FONT_MONTSERRAT_20 is not set
+# CONFIG_LV_FONT_MONTSERRAT_22 is not set
+# CONFIG_LV_FONT_MONTSERRAT_24 is not set
+
+# ==================== WIDGETS (Enable only what you need) ====================
+# Core widgets you likely need
+CONFIG_LV_USE_LABEL=y
+CONFIG_LV_USE_IMAGE=y
+CONFIG_LV_USE_BUTTON=y
+CONFIG_LV_USE_SLIDER=y
+CONFIG_LV_USE_ARC=y
+CONFIG_LV_USE_BAR=y
+CONFIG_LV_USE_SWITCH=y
+CONFIG_LV_USE_SPINNER=y
+CONFIG_LV_USE_LINE=y
+
+# Disable widgets you probably don't need (saves ~50KB+)
+# CONFIG_LV_USE_ANIMIMG is not set
+# CONFIG_LV_USE_ARCLABEL is not set
+# CONFIG_LV_USE_BUTTONMATRIX is not set
+# CONFIG_LV_USE_CALENDAR is not set
+# CONFIG_LV_USE_CANVAS is not set
+# CONFIG_LV_USE_CHART is not set
+# CONFIG_LV_USE_CHECKBOX is not set
+# CONFIG_LV_USE_DROPDOWN is not set
+# CONFIG_LV_USE_IMAGEBUTTON is not set
+# CONFIG_LV_USE_KEYBOARD is not set
+# CONFIG_LV_USE_LED is not set
+# CONFIG_LV_USE_LIST is not set
+# CONFIG_LV_USE_MENU is not set
+# CONFIG_LV_USE_MSGBOX is not set
+# CONFIG_LV_USE_ROLLER is not set
+# CONFIG_LV_USE_SCALE is not set
+# CONFIG_LV_USE_SPAN is not set
+# CONFIG_LV_USE_SPINBOX is not set
+# CONFIG_LV_USE_TEXTAREA is not set
+# CONFIG_LV_USE_TABLE is not set
+# CONFIG_LV_USE_TABVIEW is not set
+# CONFIG_LV_USE_TILEVIEW is not set
+# CONFIG_LV_USE_WIN is not set
+
+# ==================== DEBUGGING (Disable for release) ====================
+# CONFIG_LV_USE_LOG is not set
+# CONFIG_LV_USE_REFR_DEBUG is not set
+# CONFIG_LV_USE_LAYER_DEBUG is not set
+# CONFIG_LV_USE_PARALLEL_DRAW_DEBUG is not set
+
+# Keep basic assertions for safety
+CONFIG_LV_USE_ASSERT_NULL=y
+CONFIG_LV_USE_ASSERT_MALLOC=y
+# CONFIG_LV_USE_ASSERT_STYLE is not set
+# CONFIG_LV_USE_ASSERT_MEM_INTEGRITY is not set
+# CONFIG_LV_USE_ASSERT_OBJ is not set
+
+# ==================== TEXT ====================
+CONFIG_LV_TXT_ENC_UTF8=y
+CONFIG_LV_LABEL_TEXT_SELECTION=y
+# CONFIG_LV_LABEL_LONG_TXT_HINT is not set
+
+# ==================== EXTRAS (Disable unused) ====================
+# CONFIG_LV_USE_BIDI is not set
+# CONFIG_LV_USE_ARABIC_PERSIAN_CHARS is not set
+# CONFIG_LV_USE_FONT_COMPRESSED is not set
+# CONFIG_LV_USE_FLOAT is not set
+# CONFIG_LV_USE_MATRIX is not set
+

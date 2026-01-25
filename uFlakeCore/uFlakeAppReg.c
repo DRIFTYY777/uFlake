@@ -4,6 +4,7 @@
 extern const app_bundle_t counter_app;  // From Apps/counter_app/app_main.c
 extern const app_bundle_t launcher_app; // From uAppLoader/appLoader.c
 extern const app_bundle_t test_app;     // From Apps/test_app/app_main.c
+extern const app_bundle_t input_app;    // From Apps/input_app/app_main.c
 
 void register_builtin_apps(void)
 {
@@ -13,7 +14,7 @@ void register_builtin_apps(void)
     // Register apps
     app_loader_register(&counter_app);
     app_loader_register(&launcher_app);
-    
 
+    app_loader_launch(app_loader_register(&input_app));
     app_loader_launch(app_loader_register(&test_app));
 }

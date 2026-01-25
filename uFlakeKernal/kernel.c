@@ -9,17 +9,11 @@
 static const char *TAG = "KERNEL";
 static uflake_kernel_t g_kernel = {0};
 
-// Hardware timer interrupt handler (runs every FreeRTOS tick)
-// This implements OS-level preemptive multitasking behavior
-// Similar to Windows/Linux where hardware interrupts ensure kernel gets CPU time
+// Hardware timer interrupt handler
 void vApplicationTickHook(void)
 {
     static uint32_t tick_counter = 0;
     tick_counter++;
-
-// Don't call watchdog reset from interrupt context to avoid "task not found" errors
-// The kernel task will handle watchdog feeding in its main loop
-// This tick hook just ensures preemptive multitasking happens
 
 // Debug: Log every 10 seconds to confirm tick hook is working
 #ifdef CONFIG_LOG_DEFAULT_LEVEL_DEBUG
@@ -34,21 +28,6 @@ void vApplicationTickHook(void)
 }
 
 // Kernel main task - The "uFlake Kernel" core
-// This is equivalent to the Windows/Linux kernel scheduler
-// It has EXCLUSIVE control over hardware watchdogs and system resources
-//
-// ARCHITECTURE (Windows/Linux model):
-// ┌─────────────────────────────────────────────────────────────┐
-// │  KERNEL TASK (this task) - Priority 24 (highest)            │
-// │  ├─ ONLY task subscribed to hardware watchdog               │
-// │  ├─ Feeds esp_task_wdt every 400ms                          │
-// │  └─ Preemptively scheduled by FreeRTOS tick interrupt       │
-// ├─────────────────────────────────────────────────────────────┤
-// │  USER TASKS (apps, input handler, GUI, etc)                 │
-// │  ├─ NOT subscribed to hardware watchdog                     │
-// │  ├─ Can run infinite loops without feeding anything         │
-// │  └─ Cannot crash the system - kernel always gets CPU time   │
-// └─────────────────────────────────────────────────────────────┘
 static void kernel_task(void *pvParameters)
 {
     esp_task_wdt_add(NULL);
@@ -210,9 +189,6 @@ uflake_result_t uflake_kernel_start(void)
     // Set state to RUNNING BEFORE creating task to avoid race condition
     g_kernel.state = KERNEL_STATE_RUNNING;
 
-    // Create kernel task with HIGH priority (like OS kernel)
-    // High but not maximum priority allows critical user tasks to run if needed
-    // This ensures kernel gets CPU time while not starving user applications
     BaseType_t result = xTaskCreate(
         kernel_task,
         "uFlake_OS_Kernel", // Clear name indicating this is the OS kernel
@@ -282,27 +258,4 @@ void uflake_kernel_delay(uint32_t ticks)
         return;
     }
     vTaskDelay(ticks);
-}
-
-void uflake_kernel_delay_ms(uint32_t milliseconds)
-{
-    if (uflake_kernel_is_in_isr())
-    {
-        ESP_LOGE(TAG, "Cannot delay from ISR context");
-        return;
-    }
-    vTaskDelay(pdMS_TO_TICKS(milliseconds));
-}
-
-void uflake_kernel_delay_us(uint32_t microseconds)
-{
-    // Use hardware delay for microseconds (busy-wait)
-    // esp_rom_delay_us is the hardware timer-based microsecond delay
-    ets_delay_us(microseconds);
-}
-
-uint64_t uflake_kernel_get_time_us(void)
-{
-    // Get hardware timer value in microseconds
-    return esp_timer_get_time();
 }

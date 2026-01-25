@@ -2,6 +2,9 @@
 #define U_GUI_H
 
 #include <stdint.h>
+#include "ST7789.h"
+
+#define LV_TICK_PERIOD_MS 10
 
 #ifdef __cplusplus
 extern "C"
@@ -13,7 +16,7 @@ extern "C"
      *
      * This initializes the display, LVGL, and creates a simple demo UI.
      */
-    void uGui_init(void);
+    void uGui_init(st7789_driver_t *drv);
 
 #ifdef __cplusplus
 }

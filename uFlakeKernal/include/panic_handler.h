@@ -26,12 +26,12 @@ extern "C"
         char task_name[16];
         void *stack_pointer;
         char message[64];
-    } panic_info_t;
+    } uflake_panic_info_t;
 
     uflake_result_t uflake_panic_init(void);
     void uflake_panic_trigger(panic_reason_t reason, const char *message);
     void uflake_panic_check(void);
-    uflake_result_t uflake_panic_get_last_info(panic_info_t *info);
+    uflake_result_t uflake_panic_get_last_info(uflake_panic_info_t *info);
 
 #define UFLAKE_ASSERT(condition, message)                                 \
     do                                                                    \

@@ -1,27 +1,68 @@
+# =============================================================================
 # ESP-IDF Partition Table for uFlake OS
-# Name,      Type, SubType,  Offset,   Size,     Flags
-# Bootloader partitions
-nvs,         data, nvs,      0x9000,   24K,
-otadata,     data, ota,      0xf000,   8K,
-phy_init,    data, phy,      0x11000,  4K,
+# Target: ESP32-S3 with 16MB Flash
+# Total Flash: 16,777,216 bytes (0x1000000)
+# =============================================================================
+# Name,        Type,     SubType,   Offset,      Size,       Flags
+# =============================================================================
 
-# Secure certificate partition (for esp_secure_cert_mgr)
-esp_secure_cert, data, 0x3F, 0x12000,  4K,
+# -----------------------------------------------------------------------------
+# BOOTLOADER REGION (0x0000 - 0x1FFFF) - Reserved by ESP-IDF
+# Bootloader @ 0x0000 (auto), Partition table @ 0x8000
+# -----------------------------------------------------------------------------
 
-# Dual OTA partitions for firmware updates
-ota_0,       app,  ota_0,    0x20000,  1536K,
-ota_1,       app,  ota_1,    0x1A0000, 1536K,
+# NVS - Non-Volatile Storage for system settings
+nvs,          data,     nvs,       0x9000,      32K,
 
-# System storage
-system,      data, fat,      0x320000, 256K,     # System config, logs
-apps,        data, fat,      0x360000, 1024K,    # Installed apps (.elf files)
-assets,      data, fat,      0x460000, 512K,     # App assets, icons, fonts
+# PHY Init Data - WiFi/BLE calibration data
+phy_init,     data,     phy,       0x11000,     4K,
 
-# WiFi/BLE config
-nvs_wifi,    data, nvs,      0x4E0000, 16K,
+# Secure Certificate Storage (esp_secure_cert_mgr)
+esp_secure_cert, data,  0x3F,      0x12000,     4K,
 
-# User data storage
-userdata,    data, fat,      0x4E4000, 1024K,    # User files, saves
+# OTA Data - Tracks which OTA slot is active
+otadata,      data,     ota,       0x13000,     8K,
 
-# Optional: Crash logs
-coredump,    data, coredump, 0x5E4000, 64K,
+# -----------------------------------------------------------------------------
+# FIRMWARE REGION - uFlake OS (~6MB for future growth)
+# Current size ~600KB, allocating 3MB per slot for headroom
+# -----------------------------------------------------------------------------
+
+# Primary OS Partition (OTA slot 0)
+ota_0,        app,      ota_0,     0x20000,     3072K,
+
+# Secondary OS Partition (OTA slot 1) - For OTA updates
+ota_1,        app,      ota_1,     0x320000,    3072K,
+
+# -----------------------------------------------------------------------------
+# CORE DUMP REGION - CPU Crash Detection & Analysis
+# Stores register state, stack traces, memory on crash
+# 128K allows full core dump with stack for both cores
+# -----------------------------------------------------------------------------
+coredump,     data,     coredump,  0x620000,    128K,
+
+# -----------------------------------------------------------------------------
+# SYSTEM STORAGE (LittleFS) - OS Configuration & Logs
+# Better than SPIFFS: wear leveling, power-loss safe, directories
+# -----------------------------------------------------------------------------
+system,       data,     0x83,      0x640000,    256K,
+
+# -----------------------------------------------------------------------------
+# EXTERNAL APPS PARTITION (LittleFS) - Loadable Applications
+# Stores .fap files, app metadata, icons
+# 4MB for plenty of app storage
+# -----------------------------------------------------------------------------
+apps,         data,     0x83,      0x680000,    4096K,
+
+# -----------------------------------------------------------------------------
+# USER DATA & ASSETS (LittleFS) - Combined partition
+# User files, saves, preferences, fonts, icons, themes
+# 3MB total (merged userdata + assets)
+# -----------------------------------------------------------------------------
+userdata,     data,     0x83,      0xA80000,    3072K,
+
+# -----------------------------------------------------------------------------
+# RESERVED/FREE SPACE
+# Remaining: 0xD80000 to 0x1000000 = 2.5MB free for future use
+# Can be used for: factory partition, additional storage, etc.
+# -----------------------------------------------------------------------------

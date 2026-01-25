@@ -3,7 +3,7 @@
 #include "esp_system.h"
 
 static const char *TAG = "PANIC";
-static panic_info_t last_panic_info = {0};
+static uflake_panic_info_t last_panic_info = {0};
 static bool panic_occurred = false;
 
 uflake_result_t uflake_panic_init(void)
@@ -30,13 +30,27 @@ void uflake_panic_trigger(panic_reason_t reason, const char *message)
 
     panic_occurred = true;
 
-    ESP_LOGE(TAG, "PANIC: Reason=%d, Task=%s, Message=%s",
-             reason, last_panic_info.task_name, message ? message : "none");
+    ESP_LOGE(TAG, "╔════════════════════════════════════════════════════════════╗");
+    ESP_LOGE(TAG, "║                    KERNEL PANIC                            ║");
+    ESP_LOGE(TAG, "╠════════════════════════════════════════════════════════════╣");
+    ESP_LOGE(TAG, "║ Reason: %-52s ║",
+             reason == PANIC_REASON_STACK_OVERFLOW ? "Stack Overflow" : reason == PANIC_REASON_MEMORY_CORRUPTION ? "Memory Corruption"
+                                                                    : reason == PANIC_REASON_WATCHDOG_TIMEOUT    ? "Watchdog Timeout"
+                                                                    : reason == PANIC_REASON_ASSERTION_FAILED    ? "Assertion Failed"
+                                                                    : reason == PANIC_REASON_USER_ABORT          ? "User Abort"
+                                                                                                                 : "Unknown");
+    ESP_LOGE(TAG, "║ Task: %-54s ║", last_panic_info.task_name);
+    ESP_LOGE(TAG, "║ Message: %-51s ║", message ? message : "(none)");
+    ESP_LOGE(TAG, "╚════════════════════════════════════════════════════════════╝");
 
-    // For now, just log and continue. In a real system, you might:
-    // - Save crash dump to flash
-    // - Reset the system
-    // - Enter safe mode
+    // For severe panics, trigger a system restart
+    if (reason == PANIC_REASON_MEMORY_CORRUPTION ||
+        reason == PANIC_REASON_STACK_OVERFLOW)
+    {
+        ESP_LOGE(TAG, "Critical panic - system will restart in 3 seconds...");
+        vTaskDelay(pdMS_TO_TICKS(3000));
+        esp_restart();
+    }
 }
 
 void uflake_panic_check(void)
@@ -58,7 +72,7 @@ void uflake_panic_check(void)
     }
 }
 
-uflake_result_t uflake_panic_get_last_info(panic_info_t *info)
+uflake_result_t uflake_panic_get_last_info(uflake_panic_info_t *info)
 {
     if (!info)
         return UFLAKE_ERROR_INVALID_PARAM;

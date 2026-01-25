@@ -80,9 +80,6 @@ extern "C"
 
     // Kernel delay functions (hardware timer based)
     void uflake_kernel_delay(uint32_t ticks);
-    void uflake_kernel_delay_ms(uint32_t milliseconds);
-    void uflake_kernel_delay_us(uint32_t microseconds);
-    uint64_t uflake_kernel_get_time_us(void); // Hardware timer microseconds
 
     // ISR context detection (CRITICAL for hardware interrupts)
     static inline bool uflake_kernel_is_in_isr(void)

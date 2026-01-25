@@ -93,7 +93,9 @@ int sdCard_init(SD_CardConfig *cfg)
 
     ESP_LOGI(TAG, "Mounting filesystem");
     /* give SD card time to power up / settle */
-    uflake_kernel_delay_ms(100);
+
+    vTaskDelay(pdMS_TO_TICKS(100));
+
     ret = esp_vfs_fat_sdspi_mount(mount_point, &host, &slot_config, &mount_config, &card);
 
     if (ret != ESP_OK)
@@ -142,7 +144,7 @@ void sdCard_deinit(void)
 // Handler tasks for init and deinit
 static void sd_init_handler(void *arg)
 {
-    uflake_kernel_delay_ms(200); // Debounce delay
+    vTaskDelay(pdMS_TO_TICKS(200)); // Debounce delay
 
     if (gpio_get_level((gpio_num_t)config->sdDetectPin) == 0 && !sd_is_mounted)
     {
@@ -168,7 +170,7 @@ static void sd_init_handler(void *arg)
 
 static void sd_deinit_handler(void *arg)
 {
-    uflake_kernel_delay_ms(100); // Small delay
+    vTaskDelay(pdMS_TO_TICKS(100)); // Small delay
 
     if (gpio_get_level((gpio_num_t)config->sdDetectPin) == 1 && sd_is_mounted)
     {
@@ -271,7 +273,7 @@ int sdCard_setupDetectInterrupt(SD_CardConfig *cfg)
     if (gpio_get_level((gpio_num_t)cfg->sdDetectPin) == 0)
     {
         ESP_LOGI(TAG, "SD card already present, initializing...");
-        uflake_kernel_delay_ms(200);
+        vTaskDelay(pdMS_TO_TICKS(200));
         int init_ret = sdCard_init(cfg);
         if (init_ret != 1)
         {
@@ -290,4 +292,3 @@ void sdCard_removeDetectInterrupt(void)
         ESP_LOGI(TAG, "SD card detect interrupt removed");
     }
 }
-
