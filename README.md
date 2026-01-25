@@ -2,15 +2,24 @@
 
 A lightweight, modular real-time operating system built on ESP-IDF for ESP32-S3 microcontrollers with advanced peripheral support and LVGL-based GUI.
 
+## 🎉 Latest Updates
+
+**Automatic Watchdog Management** - Create simple tasks without worrying about watchdog crashes!
+- Tasks with `while(1){}` loops now work automatically
+- No manual watchdog feeding required
+- System behaves like Windows/Flipper Zero
+- See [QUICK_FIX_SUMMARY.md](QUICK_FIX_SUMMARY.md) for details
+
 ## Features
 
 - **Custom Kernel**: Built on top of FreeRTOS with enhanced subsystems
+    - **NEW: Automatic watchdog management** - Tasks just work without manual feeding!
     - Process & thread management with priority scheduling
     - Memory manager supporting Internal RAM, PSRAM, and DMA-capable memory
     - Message queue system for inter-process communication
     - Event-driven architecture
     - Timer management with high-resolution microsecond delays
-    - Watchdog monitoring
+    - Smart watchdog monitoring with auto-recovery
     - Cryptographic engine integration
     - Resource and buffer management
     - Panic handler with recovery
@@ -84,13 +93,40 @@ uFlake provides three memory allocation types:
 - **UFLAKE_MEM_SPIRAM**: Large PSRAM for buffers
 - **UFLAKE_MEM_DMA**: DMA-capable memory for peripherals
 
+## Quick Start - Creating Tasks
+
+Creating tasks in uFlake is simple - no watchdog management needed!
+
+```c
+// Simple task - just works!
+void my_task(void *arg)
+{
+    while(1) {
+        printf("Hello from task!\n");
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        // That's it! No watchdog feeding required
+    }
+}
+
+// Create the task
+uint32_t pid;
+uflake_process_create("MyTask", my_task, NULL, 
+                     4096, PROCESS_PRIORITY_NORMAL, &pid);
+```
+
+**Features:**
+- ✅ Automatic watchdog management
+- ✅ No manual feeding needed
+- ✅ Simple `while(1){}` loops work perfectly
+- ✅ System won't crash if you forget to yield
+
 ## API Example
 
 ```c
 // Create a process
 uint32_t pid;
 uflake_process_create("MyTask", task_function, NULL, 
-                                            4096, PROCESS_PRIORITY_NORMAL, &pid);
+                     4096, PROCESS_PRIORITY_NORMAL, &pid);
 
 // Allocate memory
 void *buffer = uflake_malloc(1024, UFLAKE_MEM_INTERNAL);

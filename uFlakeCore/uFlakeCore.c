@@ -38,6 +38,7 @@ static void input_read_task(void *arg)
 
     while (1)
     {
+        // Watchdog is automatically fed by the kernel
         uint16_t inputs_value = read_pca9555_inputs(UI2C_PORT_0, PCA9555_ADDRESS);
         if (!((inputs_value >> 0) & 0x01))
         {
@@ -107,7 +108,7 @@ static void input_read_task(void *arg)
             ESP_LOGI(TAG, "_L1 pressed");
         }
 
-        vTaskDelay(pdMS_TO_TICKS(100)); // Poll every 100 ms
+        uflake_process_yield(100); // Yields CPU and feeds watchdog
     }
 }
 

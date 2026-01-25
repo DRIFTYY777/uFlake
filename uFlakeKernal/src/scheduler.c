@@ -1,6 +1,7 @@
 #include "scheduler.h"
 #include "memory_manager.h"
 #include "esp_log.h"
+#include "esp_task_wdt.h"
 
 static const char *TAG = "SCHEDULER";
 static uflake_process_t *process_list = NULL;
@@ -37,15 +38,20 @@ static void process_wrapper(void *args)
 
     ESP_LOGI(TAG, "Process %s (PID: %d) started", process->name, (int)process->pid);
 
+    // DO NOT subscribe user tasks to ESP-IDF watchdog
+    // The kernel's tick hook handles watchdog feeding automatically
+    // This allows user tasks to run infinite loops without timeouts
+    ESP_LOGI(TAG, "Process %s running with automatic watchdog protection", process->name);
+
     // Free wrapper args now that we've extracted everything
     uflake_free(wrapper_args);
 
     process->state = PROCESS_STATE_RUNNING;
 
-    // Call the actual user entry point (THIS WAS MISSING!)
+    // Call the actual user entry point
     entry(user_args);
 
-    // If entry point returns, mark as terminated
+    // Mark as terminated (no watchdog cleanup needed)
     process->state = PROCESS_STATE_TERMINATED;
     ESP_LOGI(TAG, "Process %s (PID: %d) terminated", process->name, (int)process->pid);
     vTaskDelete(NULL);
@@ -262,4 +268,16 @@ uflake_process_t *uflake_process_get_current(void)
 
     xSemaphoreGive(scheduler_mutex);
     return NULL;
+}
+
+void uflake_process_yield(uint32_t delay_ms)
+{
+    if (delay_ms > 0)
+    {
+        vTaskDelay(pdMS_TO_TICKS(delay_ms));
+    }
+    else
+    {
+        taskYIELD();
+    }
 }

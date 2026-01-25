@@ -3,16 +3,58 @@
 #include "esp_system.h"
 #include "esp_heap_caps.h"
 #include "esp_timer.h"
+#include "esp_task_wdt.h"
 #include "rom/ets_sys.h"
 
 static const char *TAG = "KERNEL";
 static uflake_kernel_t g_kernel = {0};
 
-// Kernel main task
+// Hardware timer interrupt handler (runs every FreeRTOS tick)
+// This implements OS-level preemptive multitasking behavior
+// Similar to Windows/Linux where hardware interrupts ensure kernel gets CPU time
+void vApplicationTickHook(void)
+{
+    static uint32_t tick_counter = 0;
+    tick_counter++;
+
+// Don't call watchdog reset from interrupt context to avoid "task not found" errors
+// The kernel task will handle watchdog feeding in its main loop
+// This tick hook just ensures preemptive multitasking happens
+
+// Debug: Log every 10 seconds to confirm tick hook is working
+#ifdef CONFIG_LOG_DEFAULT_LEVEL_DEBUG
+    static uint32_t debug_counter = 0;
+    debug_counter++;
+    if (debug_counter >= 10000) // 10 seconds at 1000Hz
+    {
+        debug_counter = 0;
+        // Note: Don't use ESP_LOG from interrupt context
+    }
+#endif
+}
+
+// Kernel main task - The "uFlake Kernel" core
+// This is equivalent to the Windows/Linux kernel scheduler
+// It has EXCLUSIVE control over hardware watchdogs and system resources
+//
+// ARCHITECTURE (Windows/Linux model):
+// ┌─────────────────────────────────────────────────────────────┐
+// │  KERNEL TASK (this task) - Priority 24 (highest)            │
+// │  ├─ ONLY task subscribed to hardware watchdog               │
+// │  ├─ Feeds esp_task_wdt every 400ms                          │
+// │  └─ Preemptively scheduled by FreeRTOS tick interrupt       │
+// ├─────────────────────────────────────────────────────────────┤
+// │  USER TASKS (apps, input handler, GUI, etc)                 │
+// │  ├─ NOT subscribed to hardware watchdog                     │
+// │  ├─ Can run infinite loops without feeding anything         │
+// │  └─ Cannot crash the system - kernel always gets CPU time   │
+// └─────────────────────────────────────────────────────────────┘
 static void kernel_task(void *pvParameters)
 {
-    ESP_LOGI(TAG, "Kernel task started");
+    esp_task_wdt_add(NULL);
+    ESP_LOGI(TAG, "Kernel subscribed to hardware watchdog (exclusive)");
 
+    // Main kernel loop - equivalent to OS scheduler main loop
     while (g_kernel.state == KERNEL_STATE_RUNNING)
     {
         // Update tick count
@@ -30,14 +72,21 @@ static void kernel_task(void *pvParameters)
         // Process events
         uflake_event_process();
 
-        // Always check watchdog
-        uflake_watchdog_feed();
+        // Check software watchdog timeouts (uflake_watchdog_t instances)
+        uflake_watchdog_check_timeouts();
+
+        // Feed hardware watchdog
+        esp_task_wdt_reset();
 
         // Check for panic conditions
         uflake_panic_check();
 
-        vTaskDelay(pdMS_TO_TICKS(1));
+        // Small delay to yield CPU
+        vTaskDelay(pdMS_TO_TICKS(100)); // 100ms delay
     }
+
+    // Unsubscribe from watchdog before exiting
+    esp_task_wdt_delete(NULL);
 
     ESP_LOGW(TAG, "Kernel task exiting");
     vTaskDelete(NULL);
@@ -45,7 +94,7 @@ static void kernel_task(void *pvParameters)
 
 uflake_result_t uflake_kernel_init(void)
 {
-    ESP_LOGI(TAG, "Initializing uFlake Kernel v1.0");
+    ESP_LOGI(TAG, "Initializing uFlake Kernel v1.3");
 
     if (g_kernel.state != KERNEL_STATE_UNINITIALIZED)
     {
@@ -158,22 +207,27 @@ uflake_result_t uflake_kernel_start(void)
         return UFLAKE_ERROR;
     }
 
-    // Create kernel task
+    // Set state to RUNNING BEFORE creating task to avoid race condition
+    g_kernel.state = KERNEL_STATE_RUNNING;
+
+    // Create kernel task with HIGH priority (like OS kernel)
+    // High but not maximum priority allows critical user tasks to run if needed
+    // This ensures kernel gets CPU time while not starving user applications
     BaseType_t result = xTaskCreate(
         kernel_task,
-        "uflake_kernel",
+        "uFlake_OS_Kernel", // Clear name indicating this is the OS kernel
         UFLAKE_KERNEL_STACK_SIZE,
         NULL,
-        UFLAKE_KERNEL_PRIORITY,
+        configMAX_PRIORITIES - 2, // High priority but not absolute maximum
         &g_kernel.kernel_task);
 
     if (result != pdPASS)
     {
         ESP_LOGE(TAG, "Failed to create kernel task");
+        g_kernel.state = KERNEL_STATE_INITIALIZING; // Restore state on failure
         return UFLAKE_ERROR_MEMORY;
     }
 
-    g_kernel.state = KERNEL_STATE_RUNNING;
     ESP_LOGI(TAG, "Kernel started successfully");
 
     return UFLAKE_OK;

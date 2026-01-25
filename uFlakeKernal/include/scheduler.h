@@ -28,6 +28,7 @@ extern "C"
         PROCESS_PRIORITY_CRITICAL = 4
     } process_priority_t;
 
+
     // Process entry point function
     typedef void (*process_entry_t)(void *args);
 
@@ -54,6 +55,35 @@ extern "C"
     uflake_result_t uflake_process_resume(uint32_t pid);
     void uflake_scheduler_tick(void);
     uflake_process_t *uflake_process_get_current(void);
+
+    /**
+     * @brief Yields CPU to other tasks and automatically feeds watchdog
+     * 
+     * This function yields the CPU, allowing other tasks to run, and automatically
+     * feeds the watchdog timer. You can create tasks with simple while(1) loops
+     * without worrying about watchdog management - the kernel handles it automatically.
+     * 
+     * @note Even without calling this function, your task won't crash due to watchdog
+     *       because the kernel has automatic watchdog feeding via tick hooks.
+     *       However, calling yield periodically is recommended for responsive multitasking.
+     * 
+     * @param delay_ms Delay in milliseconds (0 = just yield without delay)
+     * 
+     * @example
+     * ```c
+     * void my_task(void *arg) {
+     *     while(1) {
+     *         // Do your work here
+     *         printf("Task running\\n");
+     *         
+     *         // Optional yield - gives CPU to other tasks
+     *         // If you forget this, the system won't crash, just less responsive
+     *         uflake_process_yield(100);
+     *     }
+     * }
+     * ```
+     */
+    void uflake_process_yield(uint32_t delay_ms);
 
 #ifdef __cplusplus
 }

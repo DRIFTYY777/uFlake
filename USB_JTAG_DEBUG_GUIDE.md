@@ -206,3 +206,43 @@ bt
 5. Use debug controls to step through code
 
 **That's it! Happy debugging! 🎉**
+
+---
+
+## Watchdog and Task Monitoring
+
+### Critical Tasks (Watchdog Enabled)
+Tasks that MUST respond regularly - if they hang, the system should reset:
+```c
+uflake_process_create("GUI_Task", gui_task, NULL, 8192, 
+                      PROCESS_PRIORITY_HIGH,
+                      PROCESS_FLAG_WATCHDOG_ENABLE,  // ← Monitored
+                      &pid);
+
+void gui_task(void *arg) {
+    while(1) {
+        lv_timer_handler();
+        uflake_process_yield(10);  // Feeds watchdog automatically
+    }
+}
+```
+
+### Heavy/Background Tasks (No Watchdog)
+Tasks that may run for extended periods:
+```c
+uflake_process_create("AI_Task", ai_task, NULL, 16384,
+                      PROCESS_PRIORITY_NORMAL,
+                      PROCESS_FLAG_NONE,  // ← Not monitored
+                      &pid);
+
+void ai_task(void *arg) {
+    while(1) {
+        run_ai_inference();  // May take 60+ seconds
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+}
+```
+
+**Rule of Thumb:**
+- **Enable watchdog**: UI, input, networking, time-critical tasks
+- **Disable watchdog**: Heavy computation, file I/O, user apps, background tasks

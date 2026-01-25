@@ -1,2 +1,9 @@
 CONFIG_BLINK_LED_GPIO=y
 CONFIG_BLINK_GPIO=8
+
+# Enable FreeRTOS tick hook for automatic watchdog feeding
+CONFIG_FREERTOS_USE_TICK_HOOK=y
+
+# Watchdog configuration - generous timeout with automatic feeding
+CONFIG_ESP_TASK_WDT_TIMEOUT_S=60
+CONFIG_ESP_TASK_WDT_PANIC=n

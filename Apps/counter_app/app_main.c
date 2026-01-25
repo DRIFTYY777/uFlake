@@ -32,39 +32,40 @@ const app_bundle_t counter_app = {
     .is_launcher = false};
 
 // ============================================================================
-// APP ENTRY POINT
+// APP ENTRY POINT - Windows/Linux Style User Program
 // ============================================================================
 
-// Simple counter app that runs until force exit
+// Counter app that demonstrates OS-level infinite loop protection
+// This is written like a normal Windows/Linux program - no embedded concerns!
 void counter_app_main(void)
 {
     int counter = 0;
 
-    ESP_LOGI(TAG, "Counter App Started");
+    ESP_LOGI(TAG, "Counter App Started - Testing OS-level infinite loop protection!");
+    ESP_LOGI(TAG, "This app will spin like a Windows/Linux program - no watchdog concerns!");
 
-    // Main loop - runs until app loader terminates this task
+    // Pure infinite loop - just like you'd write in Windows/Linux
+    // No delays, no yields, no hardware concerns - pure user code
     while (1)
     {
-        ESP_LOGI(TAG, "Counter: %d", counter);
         counter++;
 
-        // Display on screen (if you have display functions)
-        // display_clear();
-        // display_printf("Counter: %d\n\nHold Right+Back\nto exit", counter);
-
-        // Delete the app when counter reaches 200
-        if (counter > 50)
+        // Log every million iterations to show progress without spam
+        if (counter % 1000000 == 0)
         {
-            ESP_LOGI(TAG, "Counter reached %d, exiting app.", counter);
-            break; // Exit the loop to terminate the app
+            ESP_LOGI(TAG, "Infinite loop: %d million iterations", counter / 1000000);
         }
 
-        // Sleep for 1 second
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        // Exit after reasonable test (50 million iterations)
+        if (counter >= 50000000)
+        {
+            ESP_LOGI(TAG, "SUCCESS: Counter reached %d - OS protection worked!", counter);
+            break;
+        }
 
-        // App loader will terminate this task when:
-        // - User holds Right+Back for 2 seconds (force exit)
-        // - Launcher terminates the app
-        // No need to check exit conditions yourself!
+        // NO DELAYS - Pure busy loop like Windows/Linux user program
+        // The uFlake OS kernel handles ALL hardware management automatically
     }
+
+    ESP_LOGI(TAG, "Counter app completed - uFlake OS handled infinite loop successfully!");
 }

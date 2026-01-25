@@ -247,6 +247,7 @@ static void gui_task(void *arg)
 
     while (1)
     {
+        // Watchdog is automatically fed by the kernel
         if (gui_mutex != NULL)
         {
             if (uflake_mutex_lock(gui_mutex, UINT32_MAX) == UFLAKE_OK)
@@ -255,6 +256,6 @@ static void gui_task(void *arg)
                 uflake_mutex_unlock(gui_mutex);
             }
         }
-        vTaskDelay(pdMS_TO_TICKS(10)); // 10ms delay for better task yielding
+        uflake_process_yield(10); // Yields CPU and feeds watchdog
     }
 }

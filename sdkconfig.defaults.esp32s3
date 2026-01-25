@@ -30,6 +30,21 @@ CONFIG_APPTRACE_ENABLE=y
 CONFIG_APPTRACE_LOCK_ENABLE=y
 
 #
+# FreeRTOS Configuration for uFlake Kernel
+#
+# Enable application tick hook for automatic watchdog feeding
+CONFIG_FREERTOS_USE_TICK_HOOK=y
+
+# Higher tick rate for better responsiveness (1000 Hz = 1ms precision)
+CONFIG_FREERTOS_HZ=1000
+
+# Task watchdog configuration
+CONFIG_ESP_TASK_WDT=y
+CONFIG_ESP_TASK_WDT_TIMEOUT_S=120
+CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU0=n
+CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU1=n
+
+#
 # ESP PSRAM Configuration for uFlake OS
 #
 CONFIG_SPIRAM=y

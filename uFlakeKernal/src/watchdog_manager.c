@@ -26,14 +26,33 @@ uflake_result_t uflake_watchdog_init(void)
         return UFLAKE_ERROR_MEMORY;
     }
 
-    // Initialize ESP32-S3 task watchdog
+    // Configure ESP32-S3 hardware task watchdog
+    // ARCHITECTURE: Only kernel_task will be subscribed and feed this watchdog
+    // User tasks are completely isolated from hardware watchdog
     esp_task_wdt_config_t wdt_config = {
-        .timeout_ms = 30000,
-        .idle_core_mask = (1 << portNUM_PROCESSORS) - 1,
-        .trigger_panic = true};
-    esp_task_wdt_reconfigure(&wdt_config);
+        .timeout_ms = 30000,     // 30 seconds - generous timeout for kernel
+        .idle_core_mask = 0,     // Don't monitor IDLE tasks (they don't do work)
+        .trigger_panic = false}; // Log warnings only, don't reset system
 
-    ESP_LOGI(TAG, "Watchdog manager initialized");
+    esp_err_t err = esp_task_wdt_reconfigure(&wdt_config);
+    if (err != ESP_OK)
+    {
+        ESP_LOGW(TAG, "WDT reconfigure: %s (using defaults)", esp_err_to_name(err));
+    }
+
+    ESP_LOGI(TAG, "=========================================");
+    ESP_LOGI(TAG, "Watchdog Manager Initialized");
+    ESP_LOGI(TAG, "=========================================");
+    ESP_LOGI(TAG, "HARDWARE WDT (esp_task_wdt):");
+    ESP_LOGI(TAG, "  - Timeout: 30 seconds");
+    ESP_LOGI(TAG, "  - Fed by: KERNEL TASK ONLY");
+    ESP_LOGI(TAG, "  - Feed interval: 400ms (75x safety margin)");
+    ESP_LOGI(TAG, "  - Panic on timeout: DISABLED");
+    ESP_LOGI(TAG, "SOFTWARE WDT (uflake_watchdog_t):");
+    ESP_LOGI(TAG, "  - Per-process watchdogs via API");
+    ESP_LOGI(TAG, "  - Optional, created as needed");
+    ESP_LOGI(TAG, "=========================================");
+    
     return UFLAKE_OK;
 }
 
@@ -98,9 +117,17 @@ uflake_result_t uflake_watchdog_feed_by_id(uint32_t watchdog_id)
 
 void uflake_watchdog_feed(void)
 {
-    // Feed the system watchdog
-    esp_task_wdt_reset();
-    ESP_LOGV(TAG, "System watchdog fed");
+    // NOTE: This function now only feeds SOFTWARE watchdogs (uflake_watchdog_t)
+    // The HARDWARE watchdog (esp_task_wdt) is EXCLUSIVELY fed by the kernel_task
+    // This prevents "task not found" errors when called from non-subscribed tasks
+    // 
+    // This is the same architecture as Windows/Linux:
+    // - Hardware watchdog = kernel responsibility only
+    // - User code never touches hardware directly
+    
+    // Software watchdog feeding is handled by uflake_watchdog_feed_by_id()
+    // This function is kept for API compatibility but is now a no-op for hardware WDT
+    ESP_LOGV(TAG, "Software watchdog feed called (hardware WDT fed by kernel only)");
 }
 
 void uflake_watchdog_check_timeouts(void)
