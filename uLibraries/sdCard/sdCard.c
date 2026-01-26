@@ -292,3 +292,4 @@ void sdCard_removeDetectInterrupt(void)
         ESP_LOGI(TAG, "SD card detect interrupt removed");
     }
 }
+

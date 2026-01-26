@@ -12,6 +12,12 @@
 extern "C"
 {
 #endif
+
+    // forward declare sd_ctx_t for sd_size function
+    // #include "sdRead.h"
+    // #include "sdWrite.h"
+    // #include "common.h"
+
     typedef struct
     {
         uint8_t csPin;
@@ -25,6 +31,8 @@ extern "C"
     void sdCard_deinit(void);
     int sdCard_setupDetectInterrupt(SD_CardConfig *config);
     void sdCard_removeDetectInterrupt(void);
+
+    // static size_t sd_size(void *ctx);
 
     int sdCard_readBlock(uint32_t blockNumber, uint8_t *buffer);
     int sdCard_writeBlock(uint32_t blockNumber, const uint8_t *buffer);
