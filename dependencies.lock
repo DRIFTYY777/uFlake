@@ -1,4 +1,20 @@
 dependencies:
+  espressif/esp_new_jpeg:
+    component_hash: 2f06f88e94fbc781b26a9be4291ff4ffc88596c90436a1e1358a7a38296b44ae
+    dependencies: []
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    targets:
+    - esp32
+    - esp32s2
+    - esp32s3
+    - esp32p4
+    - esp32c2
+    - esp32c3
+    - esp32c5
+    - esp32c6
+    version: 1.0.0
   espressif/esp_secure_cert_mgr:
     component_hash: 29248e402b2014394228b289a3c02fdb1dc43168ef18fc83449a868dfbc2341f
     dependencies:
@@ -65,11 +81,12 @@ dependencies:
       type: service
     version: 9.4.0
 direct_dependencies:
+- espressif/esp_new_jpeg
 - espressif/esp_secure_cert_mgr
 - espressif/esp_tinyusb
 - idf
 - joltwallet/littlefs
 - lvgl/lvgl
-manifest_hash: bc13d70ca1dded35998e5ab308f204d1c45862e2e2c55402fdea74836656ac1c
+manifest_hash: f5ce8848af1c4a6242f8553a83acd4a096ad8832128f6f81fd5badc46a6a198d
 target: esp32s3
 version: 2.0.0

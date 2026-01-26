@@ -69,6 +69,7 @@ void config_and_init_display()
     }
 
     ST7789_invert_display(&display, false);
+    
 
     ESP_LOGI(TAG, "Display initialized successfully");
 }

@@ -7,6 +7,7 @@ idf_component_register(
         "pca9555/PCA9555.c"
         "sdCard/sdCard.c"
         "nrf24/nrf24.c"
+        "imageCodec/imageCodec.c"
     
     INCLUDE_DIRS 
         "."
@@ -14,6 +15,7 @@ idf_component_register(
         "sdCard"
         "nrf24"
         "st7789"
+        "imageCodec"
     
     REQUIRES 
         driver
@@ -26,7 +28,7 @@ idf_component_register(
         uFlakeHAL
         uFlakeKernal
         lvgl__lvgl
-
+        esp_new_jpeg
     PRIV_REQUIRES
         esp_hw_support
         esp_system
