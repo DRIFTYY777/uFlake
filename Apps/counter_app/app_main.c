@@ -2,7 +2,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
-#include "../../uAppLoader/appLoader.h"
+#include "appLoader.h"
 
 static const char *TAG = "CounterApp";
 
@@ -11,8 +11,8 @@ static const char *TAG = "CounterApp";
 // ============================================================================
 static const app_manifest_t counter_manifest = {
     .name = "Counter",
-    .version = "1.0.0",
-    .author = "uFlake Team",
+    .version = "1.3.0",
+    .author = "DRIFTYY",
     .description = "Simple counter app",
     .icon = "counter.png",
     .type = APP_TYPE_INTERNAL,
@@ -50,21 +50,12 @@ void counter_app_main(void)
     {
         counter++;
 
-        // Log every million iterations to show progress without spam
-        if (counter % 1000000 == 0)
+        if (counter >= 50)
         {
-            ESP_LOGI(TAG, "Infinite loop: %d million iterations", counter / 1000000);
-        }
-
-        // Exit after reasonable test (50 million iterations)
-        if (counter >= 50000000)
-        {
-            ESP_LOGI(TAG, "SUCCESS: Counter reached %d - OS protection worked!", counter);
+            // Exit the app
             break;
         }
-
-        // NO DELAYS - Pure busy loop like Windows/Linux user program
-        // The uFlake OS kernel handles ALL hardware management automatically
+        vTaskDelay(pdMS_TO_TICKS(100)); // Delay for 100 milliseconds
     }
 
     ESP_LOGI(TAG, "Counter app completed - uFlake OS handled infinite loop successfully!");

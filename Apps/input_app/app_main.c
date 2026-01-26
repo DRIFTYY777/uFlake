@@ -2,7 +2,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
-#include "../../uAppLoader/appLoader.h"
+#include "appLoader.h"
 #include "uI2c.h"
 
 #include "pca9555.h"
@@ -13,7 +13,7 @@ void input_app_main(void);
 static const app_manifest_t input_app_manifest = {
     .name = "InputApp",
     .version = "1.0.0",
-    .author = "uFlake Team",
+    .author = "DRIFTYY",
     .description = "Input Handling Test App",
     .icon = "input.png",
     .type = APP_TYPE_INTERNAL,

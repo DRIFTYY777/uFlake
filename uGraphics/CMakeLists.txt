@@ -1,7 +1,6 @@
 idf_component_register(
     SRCS 
         "uGUI.c"
-        "image.c"
 
     INCLUDE_DIRS 
         "."

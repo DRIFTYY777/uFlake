@@ -2,7 +2,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
-#include "../../uAppLoader/appLoader.h"
+#include "appLoader.h"
 
 static const char *TAG = "TestApp";
 

@@ -69,7 +69,6 @@ void config_and_init_display()
     }
 
     ST7789_invert_display(&display, false);
-    
 
     ESP_LOGI(TAG, "Display initialized successfully");
 }
@@ -120,7 +119,6 @@ void uflake_core_init(void)
     i2c_bus_manager_init(UI2C_PORT_0, GPIO_NUM_8, GPIO_NUM_9, UI2C_DEFAULT_FREQ_HZ);
 
     // INITIALIZE the FIRST SPI BUS  - before adding any devices
-    // Need larger transfer size for display (240x40 pixels x 2 bytes = 19200 bytes)
     uspi_bus_init(USPI_HOST_SPI3, GPIO_NUM_11, GPIO_NUM_13, GPIO_NUM_12, 32768);
     // INITIALIZE the Second SPI BUS FIRST - before adding any devices
     uspi_bus_init(USPI_HOST_SPI2, GPIO_NUM_41, GPIO_NUM_38, GPIO_NUM_40, 4096);
