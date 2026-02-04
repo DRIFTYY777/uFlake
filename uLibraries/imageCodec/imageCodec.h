@@ -10,20 +10,12 @@ extern "C"
 {
 #endif
 
-    /* ============================================================================
-     *  IMAGE FORMATS
-     * ========================================================================== */
-
     typedef enum
     {
         IMG_FMT_AUTO = 0,
         IMG_FMT_JPEG,
         IMG_FMT_PNG,
     } img_format_t;
-
-    /* ============================================================================
-     *  IMAGE OUTPUT (RGB565)
-     * ========================================================================== */
 
     typedef struct
     {
@@ -34,24 +26,15 @@ extern "C"
         size_t size;     // total buffer size in bytes
     } img_rgb565_t;
 
-    /* ============================================================================
-     *  FILE READER ABSTRACTION (for decoding)
-     * ========================================================================== */
-
     typedef struct
     {
         void *user_ctx;
-
         bool (*open)(void *user_ctx, const char *path);
         size_t (*read)(void *user_ctx, void *dst, size_t len);
         bool (*seek)(void *user_ctx, size_t offset);
         size_t (*size)(void *user_ctx);
         void (*close)(void *user_ctx);
     } img_reader_t;
-
-    /* ============================================================================
-     *  FILE WRITER ABSTRACTION (for encoding)
-     * ========================================================================== */
 
     typedef struct
     {
@@ -62,10 +45,6 @@ extern "C"
         bool (*flush)(void *user_ctx);
         void (*close)(void *user_ctx);
     } img_writer_t;
-
-    /* ============================================================================
-     *  DECODE OPTIONS
-     * ========================================================================== */
 
     typedef enum
     {
@@ -92,19 +71,11 @@ extern "C"
         img_scale_t scale;   // HW scaling (JPEG only)
     } img_decode_opts_t;
 
-    /* ============================================================================
-     *  ENCODE OPTIONS
-     * ========================================================================== */
-
     typedef struct
     {
         uint8_t quality; // JPEG quality (1-100, default 85)
         bool use_psram;  // Allocate buffers in PSRAM
     } img_encode_opts_t;
-
-    /* ============================================================================
-     *  DECODER API
-     * ========================================================================== */
 
     /**
      * Decode an image into RGB565 with options
@@ -131,10 +102,6 @@ extern "C"
                            const img_reader_t *reader,
                            img_rgb565_t *out);
 
-    /* ============================================================================
-     *  ENCODER API
-     * ========================================================================== */
-
     /**
      * Encode RGB565 image to JPEG with options
      *
@@ -156,10 +123,6 @@ extern "C"
     bool img_encode_jpeg(const img_rgb565_t *img,
                          const char *path,
                          const img_writer_t *writer);
-
-    /* ============================================================================
-     *  SCREENSHOT API (LVGL Integration)
-     * ========================================================================== */
 
     /**
      * Capture LVGL screen to RGB565 buffer
@@ -185,10 +148,6 @@ extern "C"
     bool img_screenshot_lvgl_to_jpeg(const char *path,
                                      const img_writer_t *writer,
                                      uint8_t quality);
-
-    /* ============================================================================
-     *  MEMORY MANAGEMENT
-     * ========================================================================== */
 
     /**
      * Free buffer allocated by decoder/screenshot

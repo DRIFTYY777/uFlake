@@ -20,6 +20,7 @@
 #include "ST7789.h"
 #include "sdCard.h"
 #include "uGui.h"
+#include "uBootScreen.h"
 
 static const char *TAG = "UFLAKE_CORE";
 
@@ -124,10 +125,17 @@ void uflake_core_init(void)
     uspi_bus_init(USPI_HOST_SPI2, GPIO_NUM_41, GPIO_NUM_38, GPIO_NUM_40, 4096);
 
     config_and_init_display();
+
+    // Show splash immediately
+    uboot_screen_start(&display);
+
     config_and_init_nrf24();
     config_and_init_sd_card();
-    uGui_init(&display);
 
+    vTaskDelay(pdMS_TO_TICKS(4000)); // Show for 2 seconds
+    uboot_screen_stop();
+    
+    uGui_init(&display);
     register_builtin_apps();
 
     ESP_LOGI(TAG, "uFlake Core initialized successfully");

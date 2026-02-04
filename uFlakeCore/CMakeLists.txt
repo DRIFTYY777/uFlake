@@ -41,7 +41,7 @@ idf_component_register(
         uAppLoader
         uLibraries
         uGraphics
-        
+        uBootScreen
         ${APP_COMPONENTS}
         
     PRIV_REQUIRES
