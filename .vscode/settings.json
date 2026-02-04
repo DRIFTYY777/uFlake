@@ -15,5 +15,6 @@
   "idf.openOcdLaunchArgs": [
     "-f",
     "board/esp32s3-builtin.cfg"
-  ]
+  ],
+  "idf.currentSetup": "d:\\Softwares\\esp-idf\\v5.5.2\\esp-idf"
 }

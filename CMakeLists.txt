@@ -15,6 +15,7 @@ set(EXTRA_COMPONENT_DIRS
     "uLibraries"
     "uAppLoader"
     "uGraphics"
+    "uBootScreen"
     ${APP_DIRS}
 )
 
