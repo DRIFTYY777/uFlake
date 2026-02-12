@@ -1,5 +1,17 @@
+/**
+ * @file appLoader.c
+ * @brief uFlake Application Loader - Core Implementation
+ *
+ * This module handles app registration and management.
+ * App lifecycle is handled by appLifecycle module.
+ * Services are handled by appService module.
+ * Manifest parsing is handled by appManifest module.
+ */
+
 #include "appLoader.h"
-// #include "memory/memory_manager.h"
+#include "appLifecycle.h"
+#include "appManifest.h"
+#include "appService.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include <string.h>
@@ -22,10 +34,10 @@ static bool force_exit_buttons_pressed = false;
 static uint64_t force_exit_press_time = 0;
 
 // ============================================================================
-// PRIVATE HELPERS
+// PRIVATE HELPERS (exposed to submodules)
 // ============================================================================
 
-static app_descriptor_t *find_app_by_id(uint32_t app_id)
+app_descriptor_t *app_loader_find_app_by_id(uint32_t app_id)
 {
     for (uint32_t i = 0; i < app_count; i++)
     {
@@ -58,6 +70,23 @@ uflake_result_t app_loader_init(void)
     next_app_id = 1;
     current_app_id = 0;
     launcher_app_id = 0;
+
+    // Initialize sub-modules
+    uflake_result_t result;
+
+    result = app_lifecycle_init();
+    if (result != UFLAKE_OK)
+    {
+        ESP_LOGE(TAG, "Failed to initialize lifecycle manager");
+        return result;
+    }
+
+    result = service_manager_init();
+    if (result != UFLAKE_OK)
+    {
+        ESP_LOGE(TAG, "Failed to initialize service manager");
+        return result;
+    }
 
     initialized = true;
     ESP_LOGI(TAG, "App loader initialized");
@@ -149,50 +178,8 @@ uint32_t app_loader_register_external(const char *fap_path)
 }
 
 // ============================================================================
-// APP LIFECYCLE
+// APP LIFECYCLE (Delegated to appLifecycle module)
 // ============================================================================
-
-static void app_task_wrapper(void *arg)
-{
-    uint32_t app_id = (uint32_t)(uintptr_t)arg;
-    app_descriptor_t *app = find_app_by_id(app_id);
-
-    if (!app || !app->entry_point)
-    {
-        ESP_LOGE(TAG, "Invalid app or entry point for ID %lu", app_id);
-        vTaskDelete(NULL);
-        return;
-    }
-
-    ESP_LOGI(TAG, "Starting app: %s", app->manifest.name);
-
-    app_entry_fn entry = (app_entry_fn)app->entry_point;
-    entry(); // Call app_main()
-
-    ESP_LOGI(TAG, "App %s exited", app->manifest.name);
-
-    // Clean up
-    uflake_mutex_lock(app_loader_mutex, UINT32_MAX);
-    app->state = APP_STATE_STOPPED;
-    app->task_handle = NULL;
-
-    // If this was not the launcher, return to launcher
-    if (!app->is_launcher && launcher_app_id != 0)
-    {
-        current_app_id = 0;
-        uflake_mutex_unlock(app_loader_mutex);
-
-        // Resume launcher
-        app_loader_resume(launcher_app_id);
-    }
-    else
-    {
-        current_app_id = 0;
-        uflake_mutex_unlock(app_loader_mutex);
-    }
-
-    vTaskDelete(NULL);
-}
 
 uflake_result_t app_loader_launch(uint32_t app_id)
 {
@@ -201,7 +188,7 @@ uflake_result_t app_loader_launch(uint32_t app_id)
 
     uflake_mutex_lock(app_loader_mutex, UINT32_MAX);
 
-    app_descriptor_t *app = find_app_by_id(app_id);
+    app_descriptor_t *app = app_loader_find_app_by_id(app_id);
     if (!app)
     {
         uflake_mutex_unlock(app_loader_mutex);
@@ -209,68 +196,10 @@ uflake_result_t app_loader_launch(uint32_t app_id)
         return UFLAKE_ERROR_NOT_FOUND;
     }
 
-    if (app->state == APP_STATE_RUNNING)
-    {
-        uflake_mutex_unlock(app_loader_mutex);
-        ESP_LOGW(TAG, "App %s already running", app->manifest.name);
-        return UFLAKE_OK;
-    }
-
-    // If launching a non-launcher app, pause the launcher
-    if (!app->is_launcher && launcher_app_id != 0 && launcher_app_id != app_id)
-    {
-        app_descriptor_t *launcher = find_app_by_id(launcher_app_id);
-        if (launcher && launcher->state == APP_STATE_RUNNING)
-        {
-            ESP_LOGI(TAG, "Pausing launcher");
-            launcher->state = APP_STATE_PAUSED;
-            if (launcher->task_handle)
-            {
-                vTaskSuspend(launcher->task_handle);
-            }
-        }
-    }
-
-    // Create task for app using uFlake kernel
-    uint32_t stack_size = app->manifest.stack_size > 0 ? app->manifest.stack_size : 4096;
-
-    // Map app priority to kernel priority
-    process_priority_t kernel_priority = PROCESS_PRIORITY_NORMAL;
-    if (app->manifest.priority >= 8)
-        kernel_priority = PROCESS_PRIORITY_HIGH;
-    else if (app->manifest.priority >= 5)
-        kernel_priority = PROCESS_PRIORITY_NORMAL;
-    else
-        kernel_priority = PROCESS_PRIORITY_LOW;
-
-    uint32_t pid;
-    uflake_result_t result = uflake_process_create(
-        app->manifest.name,
-        app_task_wrapper,
-        (void *)(uintptr_t)app_id,
-        stack_size,
-        kernel_priority,
-        &pid);
-
-    if (result != UFLAKE_OK)
-    {
-        uflake_mutex_unlock(app_loader_mutex);
-        ESP_LOGE(TAG, "Failed to create task for app %s", app->manifest.name);
-        return result;
-    }
-
-    // Get the task handle from FreeRTOS
-    app->task_handle = xTaskGetHandle(app->manifest.name);
-
-    app->state = APP_STATE_RUNNING;
-    app->launch_count++;
-    app->last_run_time = (uint32_t)(esp_timer_get_time() / 1000000);
-    current_app_id = app_id;
-
+    uflake_result_t result = app_lifecycle_launch(app, launcher_app_id, &current_app_id);
     uflake_mutex_unlock(app_loader_mutex);
 
-    ESP_LOGI(TAG, "Launched app: %s (ID: %lu)", app->manifest.name, app_id);
-    return UFLAKE_OK;
+    return result;
 }
 
 uflake_result_t app_loader_terminate(uint32_t app_id)
@@ -280,42 +209,17 @@ uflake_result_t app_loader_terminate(uint32_t app_id)
 
     uflake_mutex_lock(app_loader_mutex, UINT32_MAX);
 
-    app_descriptor_t *app = find_app_by_id(app_id);
+    app_descriptor_t *app = app_loader_find_app_by_id(app_id);
     if (!app)
     {
         uflake_mutex_unlock(app_loader_mutex);
         return UFLAKE_ERROR_NOT_FOUND;
     }
 
-    if (app->state != APP_STATE_RUNNING && app->state != APP_STATE_PAUSED)
-    {
-        uflake_mutex_unlock(app_loader_mutex);
-        return UFLAKE_OK; // Already stopped
-    }
-
-    ESP_LOGI(TAG, "Terminating app: %s", app->manifest.name);
-
-    if (app->task_handle)
-    {
-        // Use uFlake kernel to terminate (it will clean up properly)
-        vTaskDelete(app->task_handle);
-        app->task_handle = NULL;
-    }
-
-    app->state = APP_STATE_STOPPED;
-
-    if (current_app_id == app_id)
-        current_app_id = 0;
-
+    uflake_result_t result = app_lifecycle_terminate(app, launcher_app_id, &current_app_id);
     uflake_mutex_unlock(app_loader_mutex);
 
-    // If this was not the launcher, return to launcher
-    if (!app->is_launcher && launcher_app_id != 0)
-    {
-        app_loader_resume(launcher_app_id);
-    }
-
-    return UFLAKE_OK;
+    return result;
 }
 
 uflake_result_t app_loader_pause(uint32_t app_id)
@@ -325,30 +229,17 @@ uflake_result_t app_loader_pause(uint32_t app_id)
 
     uflake_mutex_lock(app_loader_mutex, UINT32_MAX);
 
-    app_descriptor_t *app = find_app_by_id(app_id);
+    app_descriptor_t *app = app_loader_find_app_by_id(app_id);
     if (!app)
     {
         uflake_mutex_unlock(app_loader_mutex);
         return UFLAKE_ERROR_NOT_FOUND;
     }
 
-    if (app->state != APP_STATE_RUNNING)
-    {
-        uflake_mutex_unlock(app_loader_mutex);
-        return UFLAKE_OK;
-    }
-
-    ESP_LOGI(TAG, "Pausing app: %s", app->manifest.name);
-
-    if (app->task_handle)
-    {
-        vTaskSuspend(app->task_handle);
-    }
-
-    app->state = APP_STATE_PAUSED;
-
+    uflake_result_t result = app_lifecycle_pause(app);
     uflake_mutex_unlock(app_loader_mutex);
-    return UFLAKE_OK;
+
+    return result;
 }
 
 uflake_result_t app_loader_resume(uint32_t app_id)
@@ -358,31 +249,17 @@ uflake_result_t app_loader_resume(uint32_t app_id)
 
     uflake_mutex_lock(app_loader_mutex, UINT32_MAX);
 
-    app_descriptor_t *app = find_app_by_id(app_id);
+    app_descriptor_t *app = app_loader_find_app_by_id(app_id);
     if (!app)
     {
         uflake_mutex_unlock(app_loader_mutex);
         return UFLAKE_ERROR_NOT_FOUND;
     }
 
-    if (app->state != APP_STATE_PAUSED)
-    {
-        uflake_mutex_unlock(app_loader_mutex);
-        return UFLAKE_OK;
-    }
-
-    ESP_LOGI(TAG, "Resuming app: %s", app->manifest.name);
-
-    if (app->task_handle)
-    {
-        vTaskResume(app->task_handle);
-    }
-
-    app->state = APP_STATE_RUNNING;
-    current_app_id = app_id;
-
+    uflake_result_t result = app_lifecycle_resume(app, &current_app_id);
     uflake_mutex_unlock(app_loader_mutex);
-    return UFLAKE_OK;
+
+    return result;
 }
 
 // ============================================================================
@@ -409,7 +286,7 @@ app_descriptor_t *app_loader_get_app(uint32_t app_id)
         return NULL;
 
     uflake_mutex_lock(app_loader_mutex, UINT32_MAX);
-    app_descriptor_t *app = find_app_by_id(app_id);
+    app_descriptor_t *app = app_loader_find_app_by_id(app_id);
     uflake_mutex_unlock(app_loader_mutex);
 
     return app;
@@ -483,22 +360,4 @@ void app_loader_check_force_exit(bool right_pressed, bool back_pressed)
             }
         }
     }
-}
-
-// ============================================================================
-// MANIFEST PARSING
-// ============================================================================
-
-uflake_result_t app_manifest_parse(const char *path, app_manifest_t *manifest)
-{
-    if (!path || !manifest)
-        return UFLAKE_ERROR_INVALID_PARAM;
-
-    ESP_LOGI(TAG, "Parsing manifest: %s", path);
-
-    // TODO: Implement file parsing for external apps on SD card
-    // Read manifest.txt line by line and parse key=value pairs
-    // For now, return error
-
-    return UFLAKE_ERROR;
 }

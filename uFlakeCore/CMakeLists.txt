@@ -42,7 +42,10 @@ idf_component_register(
         uLibraries
         uGraphics
         uBootScreen
+        lvgl__lvgl
+
         ${APP_COMPONENTS}
+        
         
     PRIV_REQUIRES
         esp_pm

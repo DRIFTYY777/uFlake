@@ -18,7 +18,6 @@ static const app_manifest_t gui_test_app_manifest = {
     .type = APP_TYPE_INTERNAL,
     .stack_size = 4096,
     .priority = 5,
-    .requires_gui = true,
     .requires_sdcard = false,
     .requires_network = false};
 

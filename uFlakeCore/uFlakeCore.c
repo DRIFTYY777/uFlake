@@ -14,6 +14,8 @@
 #include "uSPI.h"
 #include "unvs.h"
 #include "uUART.h"
+#include "uGPIO.h"
+
 #include "uFlakeAppReg.h"
 
 #include "nrf24.h"
@@ -58,9 +60,8 @@ void config_and_init_display()
     display.spi_speed = USPI_FREQ_80MHZ;
     display.buffer_size = 240 * 20; // 20 lines buffer
 
-    // make gpio 3 output for backlight (In Future we have to use I2C to control backlight brightness)
-    gpio_set_direction(GPIO_NUM_3, GPIO_MODE_OUTPUT);
-    gpio_set_level(GPIO_NUM_3, 1); // turn on backlight
+    // Initialize backlight PWM at 0% (boot animation will fade in)
+    ugpio_pwm_start(GPIO_NUM_3, 1000, 0);
 
     // Initialize display
     if (!ST7789_init(&display))
@@ -128,14 +129,14 @@ void uflake_core_init(void)
 
     // Show splash immediately
     uboot_screen_start(&display);
+    vTaskDelay(pdMS_TO_TICKS(6000)); // Show for 6 seconds
+    uboot_screen_stop();
 
     config_and_init_nrf24();
     config_and_init_sd_card();
 
-    vTaskDelay(pdMS_TO_TICKS(4000)); // Show for 2 seconds
-    uboot_screen_stop();
-    
     uGui_init(&display);
+
     register_builtin_apps();
 
     ESP_LOGI(TAG, "uFlake Core initialized successfully");

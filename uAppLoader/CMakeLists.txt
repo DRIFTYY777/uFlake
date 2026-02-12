@@ -1,6 +1,9 @@
 idf_component_register(
     SRCS 
         "appLoader.c"
+        "appLifecycle.c"
+        "appService.c"
+        "appManifest.c"
     
     INCLUDE_DIRS 
         "."

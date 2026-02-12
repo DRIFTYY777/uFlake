@@ -16,8 +16,8 @@ extern "C"
     // Boot screen configuration
 
 #define BOOT_SCREEN_STRIP_HEIGHT 20 // Render in strips for memory efficiency
-#define BOOT_SCREEN_FPS 40
-#define BOOT_SCREEN_DURATION_FRAMES 120 // 3 seconds at 40 FPS
+#define BOOT_SCREEN_FPS 30
+#define BOOT_SCREEN_DURATION_FRAMES 120 // Show for 2 seconds at 60 FPS
 #define BOOT_SCREEN_TASK_PRIORITY 5
 #define BOOT_SCREEN_TASK_CORE 1 // Run on core 1
 
@@ -64,6 +64,14 @@ extern "C"
      * @return Current frame number
      */
     int uboot_screen_get_frame(void);
+
+    /**
+     * @brief Set boot screen brightness manually
+     *
+     * @param brightness Brightness level (0.0 - 100.0%)
+     * @return esp_err_t ESP_OK on success
+     */
+    esp_err_t uboot_screen_set_brightness(float brightness);
 
 #ifdef __cplusplus
 }

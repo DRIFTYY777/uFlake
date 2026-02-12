@@ -114,13 +114,13 @@ Result: Smooth flowing waves creating interference patterns
 ```
 Time: 0.0s  0.5s  1.0s  1.5s  2.0s  2.5s  3.0s
       |-----|-----|-----|-----|-----|-----|
-      
+    
 Fade: ████▓▓▓▓▓▒▒▒▒▒░░░░░         (background fades in)
-      
+    
 Text:       ░░▒▒▓▓████████▓▓▒▒░░   (text fades in/out)
-      
+    
 Wave: ▁▂▃▄▅▆▇█▇▆▅▄▃▂▁▂▃▄▅▆▇█▇▆▅▄▃▂ (continuous motion)
-      
+    
 FPS:  40 frames per second (smooth animation)
 ```
 
@@ -166,7 +166,7 @@ CPU Core 0 (Main/LVGL):
     Actual display will show something like:
 
     ╔════════════════════════════════════╗
-    ║ ░░▒▒▓▓██████████▓▓▒▒░░            ║
+    ║ ░░▒▒▓▓██████████▓▓▒▒░░             ║
     ║░▒▓█████████████████████▓▒░         ║
     ║▒▓██████████████████████████▓▒      ║
     ║▓████████████████████████████▓      ║
@@ -174,15 +174,16 @@ CPU Core 0 (Main/LVGL):
     ║▓████████████████████████████▓      ║
     ║▒▓██████████████████████████▓▒      ║
     ║░▒▓█████████████████████▓▒░         ║
-    ║ ░░▒▒▓▓██████████▓▓▒▒░░            ║
+    ║ ░░▒▒▓▓██████████▓▓▒▒░░             ║
     ╚════════════════════════════════════╝
-    
+  
     (Colors flow and move like liquid)
 ```
 
 ## Comparison to Original
 
 Your original `boot_screen.c` implementation:
+
 - ✅ FreeType2 font rendering (complex)
 - ✅ Plasma animation (same algorithm)
 - ✅ Unicode support
@@ -190,6 +191,7 @@ Your original `boot_screen.c` implementation:
 - ❌ Large FreeType2 dependency (~2MB)
 
 New `uBootScreen.c` implementation:
+
 - ✅ Same plasma animation effect
 - ✅ CMake build system (ESP-IDF standard)
 - ✅ LVGL integration for text rendering
@@ -201,6 +203,7 @@ New `uBootScreen.c` implementation:
 ## Customization Examples
 
 ### Example 1: Change to Green Theme
+
 ```c
 // In render_plasma_line():
 uint8_t color_r = plasma_r >> 2;           // Less red
@@ -209,11 +212,13 @@ uint8_t color_b = plasma_b >> 2;           // Less blue
 ```
 
 ### Example 2: Faster Animation
+
 ```c
 const int frame_2 = frame << 3;  // Was << 2 (multiply by 8 instead of 4)
 ```
 
 ### Example 3: Different Text
+
 ```c
 // In render_boot_screen_strip():
 render_text_overlay(buffer, strip_y, frame, "YOUR TEXT", 

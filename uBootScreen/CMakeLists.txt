@@ -1,9 +1,10 @@
 idf_component_register(
     SRCS 
         "uBootScreen.c"
-        "uBootScreenLVGL.c"
+       
     INCLUDE_DIRS "."
     REQUIRES 
+        uFlakeKernal
         uFlakeHAL
         uLibraries
         uGraphics

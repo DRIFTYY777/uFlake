@@ -1,4 +1,19 @@
-#if !defined(APP_LOADER_H)
+/**
+ * @file appLoader.h
+ * @brief uFlake Application Loader - Main API
+ *
+ * The App Loader provides a modular system for managing apps and services:
+ * 
+ * - appLoader: Core app registration and management
+ * - appService: Background services (input, power, battery, etc.)
+ * - appLifecycle: App launch, pause, resume, terminate
+ * - appManifest: Manifest parsing and validation
+ * 
+ * Apps are GUI applications that users can launch and interact with.
+ * Services are background tasks (no GUI) that provide system functionality.
+ */
+
+#ifndef APP_LOADER_H
 #define APP_LOADER_H
 
 #include "kernel.h"
@@ -17,9 +32,11 @@ extern "C"
 #define APP_ICON_MAX_LEN 32
 #define APP_PATH_MAX_LEN 128
 #define MAX_APPS 32
+
 #define INTERNAL_APPS_FOLDER "/internal_apps"
 #define EXTERNAL_APPS_FOLDER "/sdcard/apps"
 #define APP_MANIFEST_FILENAME "manifest.txt"
+
 #define FORCE_EXIT_HOLD_TIME_MS 2000 // Hold Right+Back for 2 seconds to force exit
 
     // App types
@@ -27,7 +44,8 @@ extern "C"
     {
         APP_TYPE_INTERNAL = 0, // Built-in apps in flash
         APP_TYPE_EXTERNAL,     // Apps loaded from SD card (.fap files)
-        APP_TYPE_LAUNCHER      // Launcher/Home screen (special app)
+        APP_TYPE_LAUNCHER,     // Launcher/Home screen (special app)
+        APP_TYPE_SERVICE       // Background service (no UI, auto-start)
     } app_type_t;
 
     // App location (where app code lives)
@@ -47,7 +65,7 @@ extern "C"
 
     // App manifest - describes the app (like Flipper's FAP manifest)
     // Read from manifest.txt file in app folder
-    typedef struct
+    typedef struct app_manifest_t
     {
         char name[APP_NAME_MAX_LEN];        // Display name
         char version[APP_VERSION_MAX_LEN];  // Version string
@@ -63,7 +81,7 @@ extern "C"
     } app_manifest_t;
 
     // App descriptor - runtime info about app
-    typedef struct
+    typedef struct app_descriptor_t
     {
         uint32_t app_id;             // Unique ID
         app_manifest_t manifest;     // App metadata
