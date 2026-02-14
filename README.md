@@ -140,3 +140,18 @@ uflake_message_t msg = {.type = MSG_TYPE_DATA};
 uflake_msgqueue_send(queue, &msg, 1000);
 ```
 
+## C vs C++ Development
+
+uFlake supports both C and C++ development. The project includes comprehensive documentation on using C++ files with C-style programming:
+
+- **[C_TO_CPP_SUMMARY.md](C_TO_CPP_SUMMARY.md)** - Quick overview and decision guide
+- **[C_TO_CPP_ANALYSIS.md](C_TO_CPP_ANALYSIS.md)** - Detailed benefits/losses analysis  
+- **[C_TO_CPP_MIGRATION_GUIDE.md](C_TO_CPP_MIGRATION_GUIDE.md)** - Step-by-step conversion guide
+- **[Apps/counter_app_cpp/](Apps/counter_app_cpp/)** - Working example app in C++
+
+**Key Points:**
+- ✅ User apps can be `.cpp` with C-style programming
+- ✅ Gain type safety without performance penalty
+- ✅ Core kernel stays `.c` for maximum compatibility
+- ✅ Mixed C/C++ projects fully supported by ESP-IDF
+
