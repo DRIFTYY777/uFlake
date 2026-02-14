@@ -4,7 +4,7 @@ idf_component_register(
        
     INCLUDE_DIRS "."
     REQUIRES 
-        uFlakeKernal
+        uFlakeKernel
         uFlakeHAL
         uLibraries
         uGraphics

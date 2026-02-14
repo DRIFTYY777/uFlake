@@ -5,5 +5,5 @@ idf_component_register(
 
 
     INCLUDE_DIRS "."
-    REQUIRES uAppLoader uFlakeKernal lvgl__lvgl
+    REQUIRES uAppLoader uFlakeKernel lvgl__lvgl
 )

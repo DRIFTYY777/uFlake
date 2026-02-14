@@ -107,7 +107,7 @@ static void keypad_read_cb(lv_indev_t *indev, lv_indev_data_t *data)
 
     if (key == InputKeyUp)
     {
-        data->state = LV_INDEV_STATE_RELEASED;
+        data->state = LV_INDEV_STATE_PRESSED;
         data->key = InputKeyUp;
         ESP_LOGI(TAG, "Keypad event: UP");
     }
@@ -145,7 +145,6 @@ static void keypad_read_cb(lv_indev_t *indev, lv_indev_data_t *data)
     {
         data->state = LV_INDEV_STATE_RELEASED;
         data->key = InputKeyNone;
-        ESP_LOGI(TAG, "Keypad event: NONE");
     }
 }
 

@@ -26,7 +26,7 @@ idf_component_register(
         fatfs 
         hal
         uFlakeHAL
-        uFlakeKernal
+        uFlakeKernel
         lvgl__lvgl
         esp_new_jpeg
     PRIV_REQUIRES

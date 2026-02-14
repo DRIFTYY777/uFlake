@@ -3,10 +3,6 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/semphr.h"
-#include "freertos/queue.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -30,6 +26,11 @@ extern "C"
     // Forward declarations (BEFORE includes to break circular deps)
     typedef struct uflake_process_t uflake_process_t;
     typedef struct uflake_thread_t uflake_thread_t;
+
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/semphr.h"
+#include "freertos/queue.h"
 
 //  Move subsystem includes AFTER forward declarations
 #include "memory_manager.h"

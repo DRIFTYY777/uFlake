@@ -9,10 +9,11 @@
 // 4. Stricter type checking at compile time
 // ============================================================================
 
-#include <cstdio>  // C++ style header (or can use <stdio.h>)
+#include <cstdio> // C++ style header (or can use <stdio.h>)
 
 // Wrap C headers in extern "C" block
-extern "C" {
+extern "C"
+{
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
@@ -27,7 +28,7 @@ static const char *TAG = "CounterAppCPP";
 // Note: In C++, designated initializers work the same way
 static const app_manifest_t counter_manifest = {
     .name = "CounterCPP",
-    .version = "1.3.0",  // Same version as original counter_app
+    .version = "1.3.0", // Same version as original counter_app
     .author = "DRIFTYY",
     .description = "Counter app in C++ with C-style code (example)",
     .icon = "counter.png",
@@ -43,7 +44,8 @@ extern "C" void counter_cpp_app_main(void);
 
 // Export app bundle for registration
 // Note: This needs to be accessible from C code, so use extern "C"
-extern "C" {
+extern "C"
+{
     const app_bundle_t counter_cpp_app = {
         .manifest = &counter_manifest,
         .entry_point = counter_cpp_app_main,
@@ -69,7 +71,7 @@ extern "C" void counter_cpp_app_main(void)
 
     // Pure infinite loop - C-style programming in C++ file
     // Note: Can use 'true' instead of '1' - but either works!
-    while (true)  // or while (1) - both work
+    while (true) // or while (1) - both work
     {
         counter++;
 
@@ -87,7 +89,7 @@ extern "C" void counter_cpp_app_main(void)
 // ============================================================================
 // NOTES ON C++ WITH C-STYLE PROGRAMMING
 // ============================================================================
-// 
+//
 // Benefits gained:
 // 1. Stricter type checking - catches more errors at compile time
 // 2. Can use true/false keywords (cleaner than 1/0)

@@ -12,7 +12,7 @@ list(FILTER APP_DIRS EXCLUDE REGEX ".*\\.(c|h|md|txt)$")
 set(EXTRA_COMPONENT_DIRS 
     "S3ZERO/uFlake"
     "uFlakeCore"
-    "uFlakeKernal"
+    "uFlakeKernel"
     "uFlakeHAL"
     "uLibraries"
     "uAppLoader"

@@ -9,7 +9,7 @@ idf_component_register(
         "."
     
     REQUIRES 
-        uFlakeKernal
+        uFlakeKernel
         uFlakeHAL
         nvs_flash
 )

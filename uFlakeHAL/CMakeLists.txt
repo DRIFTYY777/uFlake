@@ -1,5 +1,6 @@
 idf_component_register(
     SRCS 
+        "uHal.c"
         "src/uGPIO.c"
         "src/uI2c.c"
         "src/uSPI.c"
@@ -8,6 +9,7 @@ idf_component_register(
         "src/uGPIO.c"
     
     INCLUDE_DIRS 
+        "."
         "include"  
     
     REQUIRES 
@@ -18,7 +20,7 @@ idf_component_register(
         esp_driver_ledc
         nvs_flash 
         esp_driver_uart
-        uFlakeKernal
+        uFlakeKernel
 
 )
 

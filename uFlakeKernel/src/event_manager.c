@@ -11,7 +11,7 @@ typedef struct subscription_node_t
 } subscription_node_t;
 
 static subscription_node_t *subscription_list = NULL;
-static uflake_event_t *pending_events = NULL;
+// static uflake_event_t *pending_events = NULL;
 static uint32_t next_subscription_id = 1;
 static SemaphoreHandle_t event_mutex = NULL;
 static QueueHandle_t event_queue = NULL;

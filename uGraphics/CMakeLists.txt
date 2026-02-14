@@ -18,7 +18,7 @@ idf_component_register(
         esp_driver_spi
         nvs_flash 
         esp_driver_uart
-        uFlakeKernal
+        uFlakeKernel
         lvgl__lvgl
         uLibraries
         uFlakeHAL

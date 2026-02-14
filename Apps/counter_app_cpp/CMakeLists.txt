@@ -4,7 +4,7 @@
 idf_component_register(
     SRCS "app_main.cpp"   # Just use .cpp extension instead of .c
     INCLUDE_DIRS "."
-    REQUIRES uAppLoader uFlakeKernal
+    REQUIRES uAppLoader uFlakeKernel
 )
 
 # Optional: If you want to enforce specific C++ standards or flags

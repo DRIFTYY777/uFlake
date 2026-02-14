@@ -1,5 +1,5 @@
 #include "input.h"
-#include "uI2c.h"
+#include "uHal.h"
 #include "pca9555.h"
 #include <sys/time.h>
 #include "appService.h"
@@ -21,17 +21,17 @@ static bool is_key_pressed_hw(InputKey key, uint16_t hw_reading)
     switch (key)
     {
     case InputKeyUp:
-        return (hw_reading == 0x0001);
+        return (!((hw_reading >> 0) & 0x01));
     case InputKeyDown:
-        return (hw_reading == 0xFDFF);
+        return (!((hw_reading >> 1) & 0x01));
     case InputKeyRight:
-        return (hw_reading == 0xFBFF);
+        return (!((hw_reading >> 2) & 0x01));
     case InputKeyLeft:
-        return (hw_reading == 0xF7FF);
+        return (!((hw_reading >> 3) & 0x01));
     case InputKeyOk:
-        return (hw_reading == 0xEFFF);
+        return (!((hw_reading >> 7) & 0x01));
     case InputKeyBack:
-        return (hw_reading == 0xDFFF);
+        return (!((hw_reading >> 6) & 0x01));
     default:
         return false;
     }

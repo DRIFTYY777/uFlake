@@ -19,7 +19,7 @@ idf_component_register(
         hal
         esp_rom
         pthread
-        uFlakeKernal
+        uFlakeKernel
         uFlakeHAL
         uAppLoader
         uLibraries
