@@ -1,15 +1,15 @@
 #if !defined(UGPIO_H_)
 #define UGPIO_H_
 
-#include "esp_err.h"
-#include "driver/gpio.h"
-
 #include "kernel.h"
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
+
+#include "esp_err.h"
+#include "driver/gpio.h"
 
     /**
      * @brief GPIO interrupt callback function type

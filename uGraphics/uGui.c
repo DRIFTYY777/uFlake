@@ -2,14 +2,10 @@
 
 #include "esp_log.h"
 #include <stdio.h>
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "driver/gpio.h"
+
 #include "sdkconfig.h"
 
 #include "kernel.h"
-#include "timer_manager.h"
-#include "synchronization.h"
 
 #include "lvgl.h"
 

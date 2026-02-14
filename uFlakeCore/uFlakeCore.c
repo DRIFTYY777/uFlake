@@ -1,9 +1,7 @@
 #include "uFlakeCore.h"
 
 #include <stdio.h>
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "driver/gpio.h"
+
 #include "esp_log.h"
 #include "esp_random.h"
 #include "esp_timer.h"

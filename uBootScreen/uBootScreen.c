@@ -3,12 +3,10 @@
 #include "esp_timer.h"
 #include "esp_random.h"
 
-#include "kernel.h"
 #include "sin_table.h"
 #include "uGPIO.h"
 #include <math.h>
 #include <string.h>
-#include "kernel.h"
 #include "ST7789.h"
 
 #define BACKLIGHT_PIN GPIO_NUM_3
@@ -293,22 +291,6 @@ esp_err_t uboot_screen_start(st7789_driver_t *driver)
     randomize_dither_table();
 
     ESP_LOGI(TAG, "Creating boot screen task");
-
-    // BaseType_t ret = xTaskCreatePinnedToCore(
-    //     boot_screen_task,
-    //     "boot_screen",
-    //     4096,
-    //     driver,
-    //     BOOT_SCREEN_TASK_PRIORITY,
-    //     &boot_state.task_handle,
-    //     BOOT_SCREEN_TASK_CORE);
-
-    // if (ret != pdPASS)
-    // {
-    //     ESP_LOGE(TAG, "Failed to create boot screen task");
-    //     boot_state.running = false;
-    //     return ESP_FAIL;
-    // }
 
     uint32_t gui_pid;
     if (uflake_process_create("Boot_Screen_Task",

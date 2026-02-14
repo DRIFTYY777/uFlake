@@ -2,8 +2,7 @@
 #include "appLoader.h"
 #include "esp_log.h"
 #include "esp_timer.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
+#include "kernel.h"
 
 static const char *TAG = "APP_LIFECYCLE";
 

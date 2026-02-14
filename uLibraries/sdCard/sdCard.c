@@ -3,8 +3,6 @@
 #include "esp_vfs_fat.h"
 #include <sys/stat.h>
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 #include "driver/gpio.h"
 #include "esp_log.h"
 #include "uSPI.h"
@@ -292,4 +290,3 @@ void sdCard_removeDetectInterrupt(void)
         ESP_LOGI(TAG, "SD card detect interrupt removed");
     }
 }
-
