@@ -27,9 +27,9 @@ static const char *TAG = "CounterAppCPP";
 // Note: In C++, designated initializers work the same way
 static const app_manifest_t counter_manifest = {
     .name = "CounterCPP",
-    .version = "1.3.0",
+    .version = "1.3.0",  // Same version as original counter_app
     .author = "DRIFTYY",
-    .description = "Counter app in C++ with C-style code",
+    .description = "Counter app in C++ with C-style code (example)",
     .icon = "counter.png",
     .type = APP_TYPE_INTERNAL,
     .stack_size = 4096,
