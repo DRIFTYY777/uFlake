@@ -7,6 +7,7 @@ idf_component_register(
         "src/uNVS.c" 
         "src/uUART.c"
         "src/uGPIO.c"
+        "src/uADC.c"
     
     INCLUDE_DIRS 
         "."
@@ -20,6 +21,8 @@ idf_component_register(
         esp_driver_ledc
         nvs_flash 
         esp_driver_uart
+        driver esp_adc
+
         uFlakeKernel
 
 )

@@ -11,6 +11,7 @@ extern "C"
 #include "uI2C.h"
 #include "uUART.h"
 #include "uNVS.h"
+#include "uADC.h"
 
 #ifdef __cplusplus
 }
