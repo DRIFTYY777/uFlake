@@ -7,6 +7,7 @@ list(FILTER APP_DIRS EXCLUDE REGEX ".*\\.(c|h|md|txt)$")
 idf_component_register(
     SRCS 
         "uGUI.c"
+        "src/inputs.c"
 
     INCLUDE_DIRS 
         "."

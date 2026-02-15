@@ -160,7 +160,7 @@ uint32_t app_loader_register_internal(const app_manifest_t *manifest,
     else
     {
         UFLAKE_LOGI(TAG, "Registered app: %s v%s (ID: %lu)",
-                 manifest->name, manifest->version, app->app_id);
+                    manifest->name, manifest->version, app->app_id);
     }
 
     app_count++;
