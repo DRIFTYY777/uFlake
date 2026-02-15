@@ -1,5 +1,4 @@
 #include "appService.h"
-#include "esp_log.h"
 #include "esp_timer.h"
 #include <string.h>
 
@@ -53,12 +52,12 @@ static void service_task_wrapper(void *arg)
 
     if (!service)
     {
-        ESP_LOGE(TAG, "Invalid service ID %lu", service_id);
+        UFLAKE_LOGE(TAG, "Invalid service ID %lu", service_id);
         vTaskDelete(NULL);
         return;
     }
 
-    ESP_LOGI(TAG, "Service task started: %s", service->manifest.name);
+    UFLAKE_LOGI(TAG, "Service task started: %s", service->manifest.name);
 
     // Service runs indefinitely until stopped
     while (service->state == SERVICE_STATE_RUNNING)
@@ -68,7 +67,7 @@ static void service_task_wrapper(void *arg)
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 
-    ESP_LOGI(TAG, "Service task exiting: %s", service->manifest.name);
+    UFLAKE_LOGI(TAG, "Service task exiting: %s", service->manifest.name);
     vTaskDelete(NULL);
 }
 
@@ -82,7 +81,7 @@ static bool check_dependencies(const service_descriptor_t *service)
 
         if (!dep || dep->state != SERVICE_STATE_RUNNING)
         {
-            ESP_LOGW(TAG, "Service %s dependency %lu not running", service->manifest.name, dep_id);
+            UFLAKE_LOGW(TAG, "Service %s dependency %lu not running", service->manifest.name, dep_id);
             return false;
         }
     }
@@ -97,14 +96,14 @@ uflake_result_t service_manager_init(void)
 {
     if (initialized)
     {
-        ESP_LOGW(TAG, "Service manager already initialized");
+        UFLAKE_LOGW(TAG, "Service manager already initialized");
         return UFLAKE_OK;
     }
 
     // Create mutex using uFlake API
     if (uflake_mutex_create(&service_mutex) != UFLAKE_OK)
     {
-        ESP_LOGE(TAG, "Failed to create mutex");
+        UFLAKE_LOGE(TAG, "Failed to create mutex");
         return UFLAKE_ERROR_MEMORY;
     }
 
@@ -113,7 +112,7 @@ uflake_result_t service_manager_init(void)
     memset(service_registry, 0, sizeof(service_registry));
 
     initialized = true;
-    ESP_LOGI(TAG, "Service manager initialized");
+    UFLAKE_LOGI(TAG, "Service manager initialized");
     return UFLAKE_OK;
 }
 
@@ -121,11 +120,11 @@ uflake_result_t service_manager_start_all(void)
 {
     if (!initialized)
     {
-        ESP_LOGE(TAG, "Service manager not initialized");
+        UFLAKE_LOGE(TAG, "Service manager not initialized");
         return UFLAKE_ERROR;
     }
 
-    ESP_LOGI(TAG, "Starting all auto-start services");
+    UFLAKE_LOGI(TAG, "Starting all auto-start services");
 
     uflake_mutex_lock(service_mutex, UINT32_MAX);
 
@@ -149,12 +148,12 @@ uflake_result_t service_manager_start_all(void)
                 if (result == UFLAKE_OK)
                 {
                     started_any = true;
-                    ESP_LOGI(TAG, "Auto-started service: %s", service->manifest.name);
+                    UFLAKE_LOGI(TAG, "Auto-started service: %s", service->manifest.name);
                 }
                 else if (service->manifest.critical)
                 {
                     uflake_mutex_unlock(service_mutex);
-                    ESP_LOGE(TAG, "Critical service %s failed to start", service->manifest.name);
+                    UFLAKE_LOGE(TAG, "Critical service %s failed to start", service->manifest.name);
                     return UFLAKE_ERROR;
                 }
             }
@@ -163,7 +162,7 @@ uflake_result_t service_manager_start_all(void)
 
     uflake_mutex_unlock(service_mutex);
 
-    ESP_LOGI(TAG, "Auto-start complete");
+    UFLAKE_LOGI(TAG, "Auto-start complete");
     return UFLAKE_OK;
 }
 
@@ -172,7 +171,7 @@ uflake_result_t service_manager_stop_all(void)
     if (!initialized)
         return UFLAKE_ERROR;
 
-    ESP_LOGI(TAG, "Stopping all services");
+    UFLAKE_LOGI(TAG, "Stopping all services");
 
     uflake_mutex_lock(service_mutex, UINT32_MAX);
 
@@ -189,7 +188,7 @@ uflake_result_t service_manager_stop_all(void)
 
     uflake_mutex_unlock(service_mutex);
 
-    ESP_LOGI(TAG, "All services stopped");
+    UFLAKE_LOGI(TAG, "All services stopped");
     return UFLAKE_OK;
 }
 
@@ -201,13 +200,13 @@ uint32_t service_register(const service_bundle_t *service_bundle)
 {
     if (!initialized || !service_bundle || !service_bundle->manifest)
     {
-        ESP_LOGE(TAG, "Invalid service bundle");
+        UFLAKE_LOGE(TAG, "Invalid service bundle");
         return 0;
     }
 
     if (service_count >= MAX_SERVICES)
     {
-        ESP_LOGE(TAG, "Service registry full (max %d services)", MAX_SERVICES);
+        UFLAKE_LOGE(TAG, "Service registry full (max %d services)", MAX_SERVICES);
         return 0;
     }
 
@@ -231,7 +230,7 @@ uint32_t service_register(const service_bundle_t *service_bundle)
 
     service_count++;
 
-    ESP_LOGI(TAG, "Registered service: %s v%s (ID: %lu, Type: %d)",
+    UFLAKE_LOGI(TAG, "Registered service: %s v%s (ID: %lu, Type: %d)",
              service->manifest.name,
              service->manifest.version,
              service->service_id,
@@ -273,7 +272,7 @@ uflake_result_t service_unregister(uint32_t service_id)
 
     uflake_mutex_unlock(service_mutex);
 
-    ESP_LOGI(TAG, "Unregistered service ID %lu", service_id);
+    UFLAKE_LOGI(TAG, "Unregistered service ID %lu", service_id);
     return UFLAKE_OK;
 }
 
@@ -292,14 +291,14 @@ uflake_result_t service_start(uint32_t service_id)
     if (!service)
     {
         uflake_mutex_unlock(service_mutex);
-        ESP_LOGE(TAG, "Service ID %lu not found", service_id);
+        UFLAKE_LOGE(TAG, "Service ID %lu not found", service_id);
         return UFLAKE_ERROR_NOT_FOUND;
     }
 
     if (service->state == SERVICE_STATE_RUNNING)
     {
         uflake_mutex_unlock(service_mutex);
-        ESP_LOGW(TAG, "Service %s already running", service->manifest.name);
+        UFLAKE_LOGW(TAG, "Service %s already running", service->manifest.name);
         return UFLAKE_OK;
     }
 
@@ -307,12 +306,12 @@ uflake_result_t service_start(uint32_t service_id)
     if (!check_dependencies(service))
     {
         uflake_mutex_unlock(service_mutex);
-        ESP_LOGE(TAG, "Service %s dependencies not met", service->manifest.name);
+        UFLAKE_LOGE(TAG, "Service %s dependencies not met", service->manifest.name);
         return UFLAKE_ERROR;
     }
 
     service->state = SERVICE_STATE_STARTING;
-    ESP_LOGI(TAG, "Starting service: %s", service->manifest.name);
+    UFLAKE_LOGI(TAG, "Starting service: %s", service->manifest.name);
 
     uflake_mutex_unlock(service_mutex);
 
@@ -322,7 +321,7 @@ uflake_result_t service_start(uint32_t service_id)
         uflake_result_t result = service->init();
         if (result != UFLAKE_OK)
         {
-            ESP_LOGE(TAG, "Service %s init failed", service->manifest.name);
+            UFLAKE_LOGE(TAG, "Service %s init failed", service->manifest.name);
             uflake_mutex_lock(service_mutex, UINT32_MAX);
             service->state = SERVICE_STATE_ERROR;
             service->crash_count++;
@@ -337,7 +336,7 @@ uflake_result_t service_start(uint32_t service_id)
         uflake_result_t result = service->start();
         if (result != UFLAKE_OK)
         {
-            ESP_LOGE(TAG, "Service %s start failed", service->manifest.name);
+            UFLAKE_LOGE(TAG, "Service %s start failed", service->manifest.name);
             uflake_mutex_lock(service_mutex, UINT32_MAX);
             service->state = SERVICE_STATE_ERROR;
             service->crash_count++;
@@ -372,7 +371,7 @@ uflake_result_t service_start(uint32_t service_id)
 
     if (result != UFLAKE_OK)
     {
-        ESP_LOGE(TAG, "Failed to create task for service %s", service->manifest.name);
+        UFLAKE_LOGE(TAG, "Failed to create task for service %s", service->manifest.name);
         uflake_mutex_lock(service_mutex, UINT32_MAX);
         service->state = SERVICE_STATE_ERROR;
         service->crash_count++;
@@ -389,7 +388,7 @@ uflake_result_t service_start(uint32_t service_id)
 
     uflake_mutex_unlock(service_mutex);
 
-    ESP_LOGI(TAG, "Service %s started successfully", service->manifest.name);
+    UFLAKE_LOGI(TAG, "Service %s started successfully", service->manifest.name);
     return UFLAKE_OK;
 }
 
@@ -414,7 +413,7 @@ uflake_result_t service_stop(uint32_t service_id)
     }
 
     service->state = SERVICE_STATE_STOPPING;
-    ESP_LOGI(TAG, "Stopping service: %s", service->manifest.name);
+    UFLAKE_LOGI(TAG, "Stopping service: %s", service->manifest.name);
 
     uflake_mutex_unlock(service_mutex);
 
@@ -443,7 +442,7 @@ uflake_result_t service_stop(uint32_t service_id)
 
     uflake_mutex_unlock(service_mutex);
 
-    ESP_LOGI(TAG, "Service %s stopped", service->manifest.name);
+    UFLAKE_LOGI(TAG, "Service %s stopped", service->manifest.name);
     return UFLAKE_OK;
 }
 
@@ -452,12 +451,12 @@ uflake_result_t service_restart(uint32_t service_id)
     if (!initialized)
         return UFLAKE_ERROR;
 
-    ESP_LOGI(TAG, "Restarting service ID %lu", service_id);
+    UFLAKE_LOGI(TAG, "Restarting service ID %lu", service_id);
 
     uflake_result_t result = service_stop(service_id);
     if (result != UFLAKE_OK)
     {
-        ESP_LOGE(TAG, "Failed to stop service ID %lu", service_id);
+        UFLAKE_LOGE(TAG, "Failed to stop service ID %lu", service_id);
         return result;
     }
 
@@ -466,7 +465,7 @@ uflake_result_t service_restart(uint32_t service_id)
     result = service_start(service_id);
     if (result != UFLAKE_OK)
     {
-        ESP_LOGE(TAG, "Failed to restart service ID %lu", service_id);
+        UFLAKE_LOGE(TAG, "Failed to restart service ID %lu", service_id);
         return result;
     }
 

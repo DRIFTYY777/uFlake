@@ -2,6 +2,7 @@
 #include "esp_log.h"
 
 #include "uFlakeCore.h"
+#include "kernel.h"
 
 static const char *TAG = "MAIN";
 
@@ -9,11 +10,11 @@ extern "C"
 {
     void app_main(void)
     {
-        ESP_LOGI(TAG, "Starting uFlake OS...");
+        UFLAKE_LOGI(TAG, "Starting uFlake OS...");
 
         // Initialize and start the entire OS
         uflake_core_init();
 
-        ESP_LOGI(TAG, "uFlake OS running");
+        UFLAKE_LOGI(TAG, "uFlake OS running");
     }
 }

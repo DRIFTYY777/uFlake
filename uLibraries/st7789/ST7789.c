@@ -1,8 +1,6 @@
 #include "ST7789.h"
-#include "esp_log.h"
 #include "esp_heap_caps.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
+
 #include "kernel.h"
 #include <string.h>
 #include <stdbool.h>
@@ -18,17 +16,17 @@ static void ST7789_multi_cmd(st7789_driver_t *driver, const st7789_command_t *se
 
 bool ST7789_init(st7789_driver_t *driver)
 {
-    ESP_LOGI(TAG, "Initializing ST7789 display...");
+    UFLAKE_LOGI(TAG, "Initializing ST7789 display...");
 
     // Allocate buffer memory using uFlake kernel memory manager
     driver->buffer = (st7789_color_t *)uflake_malloc(driver->buffer_size * 2 * sizeof(st7789_color_t), UFLAKE_MEM_DMA);
     if (driver->buffer == NULL)
     {
-        ESP_LOGE(TAG, "Display buffer allocation fail");
+        UFLAKE_LOGE(TAG, "Display buffer allocation fail");
         return false;
     }
 
-    ESP_LOGI(TAG, "Display buffer allocated with size: %zu bytes", driver->buffer_size * 2 * sizeof(st7789_color_t));
+    UFLAKE_LOGI(TAG, "Display buffer allocated with size: %zu bytes", driver->buffer_size * 2 * sizeof(st7789_color_t));
 
     // Set-up the display buffers
     driver->buffer_primary = driver->buffer;
@@ -47,7 +45,7 @@ bool ST7789_init(st7789_driver_t *driver)
     gpio_set_direction(driver->pin_reset, GPIO_MODE_OUTPUT);
     gpio_set_direction(driver->pin_dc, GPIO_MODE_OUTPUT);
 
-    ESP_LOGI(TAG, "GPIO configured - RST: %d, DC: %d", driver->pin_reset, driver->pin_dc);
+    UFLAKE_LOGI(TAG, "GPIO configured - RST: %d, DC: %d", driver->pin_reset, driver->pin_dc);
 
     // Configure SPI device using uFlake HAL
     uspi_device_config_t spi_config = {
@@ -66,42 +64,42 @@ bool ST7789_init(st7789_driver_t *driver)
     esp_err_t ret = uspi_device_add(driver->spi_host, &spi_config, &driver->spi);
     if (ret != ESP_OK)
     {
-        ESP_LOGE(TAG, "Failed to add SPI device: %s", esp_err_to_name(ret));
+        UFLAKE_LOGE(TAG, "Failed to add SPI device: %s", esp_err_to_name(ret));
         uflake_free(driver->buffer);
         return false;
     }
 
-    ESP_LOGI(TAG, "SPI device configured via uFlake HAL");
+    UFLAKE_LOGI(TAG, "SPI device configured via uFlake HAL");
 
     // Initialize the display
     ST7789_reset(driver);
     ST7789_config(driver);
 
-    ESP_LOGI(TAG, "Display configured and ready (%dx%d)", driver->display_width, driver->display_height);
+    UFLAKE_LOGI(TAG, "Display configured and ready (%dx%d)", driver->display_width, driver->display_height);
 
     return true;
 }
 
 bool ST7789_deinit(st7789_driver_t *driver)
 {
-    ESP_LOGI(TAG, "Deinitializing ST7789 display...");
+    UFLAKE_LOGI(TAG, "Deinitializing ST7789 display...");
 
     // Remove SPI device
     esp_err_t ret = uspi_device_remove(driver->spi);
     if (ret != ESP_OK)
     {
-        ESP_LOGE(TAG, "Failed to remove SPI device: %s", esp_err_to_name(ret));
+        UFLAKE_LOGE(TAG, "Failed to remove SPI device: %s", esp_err_to_name(ret));
         return false;
     }
 
-    ESP_LOGI(TAG, "SPI device removed");
+    UFLAKE_LOGI(TAG, "SPI device removed");
 
     // Free allocated buffer memory
     if (driver->buffer)
     {
         uflake_free(driver->buffer);
         driver->buffer = NULL;
-        ESP_LOGI(TAG, "Display buffer freed");
+        UFLAKE_LOGI(TAG, "Display buffer freed");
     }
 
     return true;

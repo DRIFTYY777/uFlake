@@ -5,7 +5,7 @@ foreach(APP_PATH ${APP_PATHS})
     if(IS_DIRECTORY ${APP_PATH})
         get_filename_component(APP_NAME ${APP_PATH} NAME)
         # Exclude non-component files
-        if(NOT APP_NAME MATCHES ".*\\.(c|h|md|txt)$")
+        if(NOT APP_NAME MATCHES ".*\\.(c|cpp|h|md|txt)$")
             list(APPEND APP_COMPONENTS ${APP_NAME})
             message(STATUS "uFlake: Found app component: ${APP_NAME}")
         endif()

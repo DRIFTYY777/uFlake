@@ -1,5 +1,4 @@
 #include "uUART.h"
-#include "esp_log.h"
 #include <string.h>
 
 static const char *TAG = "UART_HAL";
@@ -47,13 +46,13 @@ uflake_result_t uflake_uart_init(uflake_uart_handle_t *handle, const uflake_uart
 {
     if (handle == NULL || config == NULL)
     {
-        ESP_LOGE(TAG, "Invalid parameters");
+        UFLAKE_LOGE(TAG, "Invalid parameters");
         return UFLAKE_ERROR_INVALID_PARAM;
     }
 
     if (handle->is_initialized)
     {
-        ESP_LOGW(TAG, "UART port %d already initialized", config->port);
+        UFLAKE_LOGW(TAG, "UART port %d already initialized", config->port);
         return UFLAKE_OK;
     }
 
@@ -83,7 +82,7 @@ uflake_result_t uflake_uart_init(uflake_uart_handle_t *handle, const uflake_uart
                                         intr_alloc_flags);
     if (err != ESP_OK)
     {
-        ESP_LOGE(TAG, "Failed to install UART driver: %s", esp_err_to_name(err));
+        UFLAKE_LOGE(TAG, "Failed to install UART driver: %s", esp_err_to_name(err));
         return UFLAKE_ERROR;
     }
 
@@ -91,7 +90,7 @@ uflake_result_t uflake_uart_init(uflake_uart_handle_t *handle, const uflake_uart
     err = uart_param_config(config->port, &uart_config);
     if (err != ESP_OK)
     {
-        ESP_LOGE(TAG, "Failed to configure UART parameters: %s", esp_err_to_name(err));
+        UFLAKE_LOGE(TAG, "Failed to configure UART parameters: %s", esp_err_to_name(err));
         uart_driver_delete(config->port);
         return UFLAKE_ERROR;
     }
@@ -100,7 +99,7 @@ uflake_result_t uflake_uart_init(uflake_uart_handle_t *handle, const uflake_uart
     err = uart_set_pin(config->port, config->tx_pin, config->rx_pin, config->rts_pin, config->cts_pin);
     if (err != ESP_OK)
     {
-        ESP_LOGE(TAG, "Failed to set UART pins: %s", esp_err_to_name(err));
+        UFLAKE_LOGE(TAG, "Failed to set UART pins: %s", esp_err_to_name(err));
         uart_driver_delete(config->port);
         return UFLAKE_ERROR;
     }
@@ -119,7 +118,7 @@ uflake_result_t uflake_uart_init(uflake_uart_handle_t *handle, const uflake_uart
     err = uart_set_rx_full_threshold(config->port, config->rx_threshold);
     if (err != ESP_OK)
     {
-        ESP_LOGW(TAG, "Failed to set RX threshold: %s", esp_err_to_name(err));
+        UFLAKE_LOGW(TAG, "Failed to set RX threshold: %s", esp_err_to_name(err));
     }
 
     // Enable pattern detection if requested
@@ -128,7 +127,7 @@ uflake_result_t uflake_uart_init(uflake_uart_handle_t *handle, const uflake_uart
         err = uart_enable_pattern_det_baud_intr(config->port, config->pattern_char, config->pattern_count, 9, 0, 0);
         if (err != ESP_OK)
         {
-            ESP_LOGW(TAG, "Failed to enable pattern detection: %s", esp_err_to_name(err));
+            UFLAKE_LOGW(TAG, "Failed to enable pattern detection: %s", esp_err_to_name(err));
         }
         else
         {
@@ -153,7 +152,7 @@ uflake_result_t uflake_uart_init(uflake_uart_handle_t *handle, const uflake_uart
 
     if (result != UFLAKE_OK)
     {
-        ESP_LOGE(TAG, "Failed to create UART event task");
+        UFLAKE_LOGE(TAG, "Failed to create UART event task");
         uart_driver_delete(config->port);
         handle->is_initialized = false;
         return UFLAKE_ERROR_MEMORY;
@@ -162,8 +161,8 @@ uflake_result_t uflake_uart_init(uflake_uart_handle_t *handle, const uflake_uart
     // Get the task handle from FreeRTOS for later deletion
     handle->event_task_handle = xTaskGetHandle("uart_event_task");
 
-    ESP_LOGI(TAG, "UART%d initialized (TX=%d, RX=%d, Baud=%d)",
-             config->port, config->tx_pin, config->rx_pin, config->baud_rate);
+    UFLAKE_LOGI(TAG, "UART%d initialized (TX=%d, RX=%d, Baud=%d)",
+                config->port, config->tx_pin, config->rx_pin, config->baud_rate);
 
     return UFLAKE_OK;
 }
@@ -194,7 +193,7 @@ uflake_result_t uflake_uart_deinit(uflake_uart_handle_t *handle)
     esp_err_t err = uart_driver_delete(handle->port);
     if (err != ESP_OK)
     {
-        ESP_LOGE(TAG, "Failed to delete UART driver: %s", esp_err_to_name(err));
+        UFLAKE_LOGE(TAG, "Failed to delete UART driver: %s", esp_err_to_name(err));
         return UFLAKE_ERROR;
     }
 
@@ -205,7 +204,7 @@ uflake_result_t uflake_uart_deinit(uflake_uart_handle_t *handle)
     handle->isr_rx_callback = NULL;
     handle->pattern_callback = NULL;
 
-    ESP_LOGI(TAG, "UART%d deinitialized", handle->port);
+    UFLAKE_LOGI(TAG, "UART%d deinitialized", handle->port);
     return UFLAKE_OK;
 }
 
@@ -220,7 +219,7 @@ uflake_result_t uflake_uart_write(uflake_uart_handle_t *handle, const uint8_t *d
     int bytes_written = uart_write_bytes(handle->port, (const char *)data, len);
     if (bytes_written < 0)
     {
-        ESP_LOGE(TAG, "Failed to write to UART");
+        UFLAKE_LOGE(TAG, "Failed to write to UART");
         return UFLAKE_ERROR;
     }
 
@@ -326,11 +325,11 @@ uflake_result_t uflake_uart_set_baud_rate(uflake_uart_handle_t *handle, int baud
     esp_err_t err = uart_set_baudrate(handle->port, baud_rate);
     if (err != ESP_OK)
     {
-        ESP_LOGE(TAG, "Failed to set baud rate: %s", esp_err_to_name(err));
+        UFLAKE_LOGE(TAG, "Failed to set baud rate: %s", esp_err_to_name(err));
         return UFLAKE_ERROR;
     }
 
-    ESP_LOGI(TAG, "UART%d baud rate set to %d", handle->port, baud_rate);
+    UFLAKE_LOGI(TAG, "UART%d baud rate set to %d", handle->port, baud_rate);
     return UFLAKE_OK;
 }
 
@@ -345,7 +344,7 @@ uflake_result_t uflake_uart_set_pins(uflake_uart_handle_t *handle, int tx, int r
     esp_err_t err = uart_set_pin(handle->port, tx, rx, rts, cts);
     if (err != ESP_OK)
     {
-        ESP_LOGE(TAG, "Failed to set pins: %s", esp_err_to_name(err));
+        UFLAKE_LOGE(TAG, "Failed to set pins: %s", esp_err_to_name(err));
         return UFLAKE_ERROR;
     }
 
@@ -363,7 +362,7 @@ uflake_result_t uflake_uart_set_mode(uflake_uart_handle_t *handle, uart_mode_t m
     esp_err_t err = uart_set_mode(handle->port, mode);
     if (err != ESP_OK)
     {
-        ESP_LOGE(TAG, "Failed to set mode: %s", esp_err_to_name(err));
+        UFLAKE_LOGE(TAG, "Failed to set mode: %s", esp_err_to_name(err));
         return UFLAKE_ERROR;
     }
 
@@ -391,7 +390,7 @@ uflake_result_t uflake_uart_register_isr_callback(uflake_uart_handle_t *handle, 
     }
 
     handle->isr_rx_callback = callback;
-    ESP_LOGI(TAG, "ISR callback registered for UART%d (will be called from ISR context)", handle->port);
+    UFLAKE_LOGI(TAG, "ISR callback registered for UART%d (will be called from ISR context)", handle->port);
     return UFLAKE_OK;
 }
 
@@ -430,7 +429,7 @@ uflake_result_t uflake_uart_flush(uflake_uart_handle_t *handle)
     esp_err_t err = uart_flush(handle->port);
     if (err != ESP_OK)
     {
-        ESP_LOGE(TAG, "Failed to flush: %s", esp_err_to_name(err));
+        UFLAKE_LOGE(TAG, "Failed to flush: %s", esp_err_to_name(err));
         return UFLAKE_ERROR;
     }
 
@@ -448,7 +447,7 @@ uflake_result_t uflake_uart_flush_input(uflake_uart_handle_t *handle)
     esp_err_t err = uart_flush_input(handle->port);
     if (err != ESP_OK)
     {
-        ESP_LOGE(TAG, "Failed to flush input: %s", esp_err_to_name(err));
+        UFLAKE_LOGE(TAG, "Failed to flush input: %s", esp_err_to_name(err));
         return UFLAKE_ERROR;
     }
 
@@ -465,18 +464,18 @@ uflake_result_t uflake_uart_set_rx_threshold(uflake_uart_handle_t *handle, int t
 
     if (threshold < 1 || threshold > 127)
     {
-        ESP_LOGE(TAG, "Invalid RX threshold: %d (must be 1-127)", threshold);
+        UFLAKE_LOGE(TAG, "Invalid RX threshold: %d (must be 1-127)", threshold);
         return UFLAKE_ERROR_INVALID_PARAM;
     }
 
     esp_err_t err = uart_set_rx_full_threshold(handle->port, threshold);
     if (err != ESP_OK)
     {
-        ESP_LOGE(TAG, "Failed to set RX threshold: %s", esp_err_to_name(err));
+        UFLAKE_LOGE(TAG, "Failed to set RX threshold: %s", esp_err_to_name(err));
         return UFLAKE_ERROR;
     }
 
-    ESP_LOGI(TAG, "UART%d RX threshold set to %d bytes", handle->port, threshold);
+    UFLAKE_LOGI(TAG, "UART%d RX threshold set to %d bytes", handle->port, threshold);
     return UFLAKE_OK;
 }
 
@@ -490,7 +489,7 @@ uflake_result_t uflake_uart_enable_pattern_detect(uflake_uart_handle_t *handle, 
 
     if (chr_num < 1 || chr_num > 127)
     {
-        ESP_LOGE(TAG, "Invalid pattern count: %d (must be 1-127)", chr_num);
+        UFLAKE_LOGE(TAG, "Invalid pattern count: %d (must be 1-127)", chr_num);
         return UFLAKE_ERROR_INVALID_PARAM;
     }
 
@@ -500,7 +499,7 @@ uflake_result_t uflake_uart_enable_pattern_detect(uflake_uart_handle_t *handle, 
         handle->pattern_buffer = (uint8_t *)uflake_malloc(UART_RX_BUF_SIZE, UFLAKE_MEM_INTERNAL);
         if (handle->pattern_buffer == NULL)
         {
-            ESP_LOGE(TAG, "Failed to allocate pattern buffer");
+            UFLAKE_LOGE(TAG, "Failed to allocate pattern buffer");
             return UFLAKE_ERROR_MEMORY;
         }
         handle->pattern_buffer_size = UART_RX_BUF_SIZE;
@@ -509,11 +508,11 @@ uflake_result_t uflake_uart_enable_pattern_detect(uflake_uart_handle_t *handle, 
     esp_err_t err = uart_enable_pattern_det_baud_intr(handle->port, pattern_char, chr_num, 9, post_idle, pre_idle);
     if (err != ESP_OK)
     {
-        ESP_LOGE(TAG, "Failed to enable pattern detection: %s", esp_err_to_name(err));
+        UFLAKE_LOGE(TAG, "Failed to enable pattern detection: %s", esp_err_to_name(err));
         return UFLAKE_ERROR;
     }
 
-    ESP_LOGI(TAG, "UART%d pattern detection enabled (char=0x%02X, count=%d)", handle->port, pattern_char, chr_num);
+    UFLAKE_LOGI(TAG, "UART%d pattern detection enabled (char=0x%02X, count=%d)", handle->port, pattern_char, chr_num);
     return UFLAKE_OK;
 }
 
@@ -528,11 +527,11 @@ uflake_result_t uflake_uart_disable_pattern_detect(uflake_uart_handle_t *handle)
     esp_err_t err = uart_disable_pattern_det_intr(handle->port);
     if (err != ESP_OK)
     {
-        ESP_LOGE(TAG, "Failed to disable pattern detection: %s", esp_err_to_name(err));
+        UFLAKE_LOGE(TAG, "Failed to disable pattern detection: %s", esp_err_to_name(err));
         return UFLAKE_ERROR;
     }
 
-    ESP_LOGI(TAG, "UART%d pattern detection disabled", handle->port);
+    UFLAKE_LOGI(TAG, "UART%d pattern detection disabled", handle->port);
     return UFLAKE_OK;
 }
 
@@ -583,12 +582,12 @@ static void uart_event_task(void *pvParameters)
 
     if (rx_buffer == NULL)
     {
-        ESP_LOGE(TAG, "Failed to allocate RX buffer");
+        UFLAKE_LOGE(TAG, "Failed to allocate RX buffer");
         vTaskDelete(NULL);
         return;
     }
 
-    ESP_LOGI(TAG, "UART event task started for UART%d", handle->port);
+    UFLAKE_LOGI(TAG, "UART event task started for UART%d", handle->port);
 
     while (1)
     {
@@ -599,7 +598,7 @@ static void uart_event_task(void *pvParameters)
             {
             case UART_DATA:
                 // Data received
-                ESP_LOGD(TAG, "UART_DATA: %d bytes", event.size);
+                UFLAKE_LOGD(TAG, "UART_DATA: %d bytes", event.size);
 
                 // Call ISR callback first if registered (lower latency)
                 if (handle->isr_rx_callback != NULL)
@@ -632,7 +631,7 @@ static void uart_event_task(void *pvParameters)
                 break;
 
             case UART_FIFO_OVF:
-                ESP_LOGW(TAG, "UART FIFO overflow");
+                UFLAKE_LOGW(TAG, "UART FIFO overflow");
                 uart_flush_input(handle->port);
                 xQueueReset(handle->event_queue);
                 if (handle->error_callback != NULL)
@@ -642,7 +641,7 @@ static void uart_event_task(void *pvParameters)
                 break;
 
             case UART_BUFFER_FULL:
-                ESP_LOGW(TAG, "UART ring buffer full");
+                UFLAKE_LOGW(TAG, "UART ring buffer full");
                 uart_flush_input(handle->port);
                 xQueueReset(handle->event_queue);
                 if (handle->error_callback != NULL)
@@ -652,7 +651,7 @@ static void uart_event_task(void *pvParameters)
                 break;
 
             case UART_BREAK:
-                ESP_LOGW(TAG, "UART break detected");
+                UFLAKE_LOGW(TAG, "UART break detected");
                 if (handle->error_callback != NULL)
                 {
                     handle->error_callback(UART_BREAK);
@@ -660,7 +659,7 @@ static void uart_event_task(void *pvParameters)
                 break;
 
             case UART_PARITY_ERR:
-                ESP_LOGE(TAG, "UART parity error");
+                UFLAKE_LOGE(TAG, "UART parity error");
                 if (handle->error_callback != NULL)
                 {
                     handle->error_callback(UART_PARITY_ERR);
@@ -668,7 +667,7 @@ static void uart_event_task(void *pvParameters)
                 break;
 
             case UART_FRAME_ERR:
-                ESP_LOGE(TAG, "UART frame error");
+                UFLAKE_LOGE(TAG, "UART frame error");
                 if (handle->error_callback != NULL)
                 {
                     handle->error_callback(UART_FRAME_ERR);
@@ -676,7 +675,7 @@ static void uart_event_task(void *pvParameters)
                 break;
 
             case UART_PATTERN_DET:
-                ESP_LOGD(TAG, "UART pattern detected");
+                UFLAKE_LOGD(TAG, "UART pattern detected");
                 if (handle->pattern_callback != NULL)
                 {
                     int pos = uart_pattern_pop_pos(handle->port);
@@ -710,13 +709,13 @@ static void uart_event_task(void *pvParameters)
                 break;
 
             default:
-                ESP_LOGW(TAG, "Unknown UART event type: %d", event.type);
+                UFLAKE_LOGW(TAG, "Unknown UART event type: %d", event.type);
                 break;
             }
         }
     }
 
-    ESP_LOGW(TAG, "UART event task exiting for UART%d", handle->port);
+    UFLAKE_LOGW(TAG, "UART event task exiting for UART%d", handle->port);
     uflake_free(rx_buffer);
     vTaskDelete(NULL);
 }

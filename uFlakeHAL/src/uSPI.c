@@ -1,5 +1,4 @@
 #include "uSPI.h"
-#include "esp_log.h"
 #include <string.h>
 
 static const char *TAG = "USPI";
@@ -58,7 +57,7 @@ static esp_err_t add_device_to_list(uspi_bus_state_t *bus, spi_device_handle_t h
 
     if (!node)
     {
-        ESP_LOGE(TAG, "Failed to allocate device node");
+        UFLAKE_LOGE(TAG, "Failed to allocate device node");
         return ESP_ERR_NO_MEM;
     }
 
@@ -71,7 +70,7 @@ static esp_err_t add_device_to_list(uspi_bus_state_t *bus, spi_device_handle_t h
     bus->device_list = node;
     bus->device_count++;
 
-    ESP_LOGI(TAG, "Added SPI device '%s' to host %d (total: %d)",
+    UFLAKE_LOGI(TAG, "Added SPI device '%s' to host %d (total: %d)",
              config->device_name ? config->device_name : "unnamed",
              bus->host, bus->device_count);
 
@@ -96,7 +95,7 @@ static esp_err_t remove_device_from_list(uspi_bus_state_t *bus, spi_device_handl
                 bus->device_list = current->next;
             }
 
-            ESP_LOGI(TAG, "Removed SPI device '%s' from host %d",
+            UFLAKE_LOGI(TAG, "Removed SPI device '%s' from host %d",
                      current->config.device_name ? current->config.device_name : "unnamed",
                      bus->host);
 
@@ -120,20 +119,20 @@ uflake_result_t uspi_bus_init(spi_host_device_t host, gpio_num_t mosi, gpio_num_
 {
     if (host >= SOC_SPI_PERIPH_NUM || host == SPI1_HOST)
     {
-        ESP_LOGE(TAG, "Invalid SPI host: %d", host);
+        UFLAKE_LOGE(TAG, "Invalid SPI host: %d", host);
         return UFLAKE_ERROR_INVALID_PARAM;
     }
 
     if (uspi_buses[host].is_initialized)
     {
-        ESP_LOGW(TAG, "SPI host %d already initialized", host);
+        UFLAKE_LOGW(TAG, "SPI host %d already initialized", host);
         return UFLAKE_OK;
     }
 
     // Create mutex for this bus
     if (uflake_mutex_create(&uspi_buses[host].mutex) != UFLAKE_OK)
     {
-        ESP_LOGE(TAG, "Failed to create mutex for SPI host %d", host);
+        UFLAKE_LOGE(TAG, "Failed to create mutex for SPI host %d", host);
         return UFLAKE_ERROR_MEMORY;
     }
 
@@ -151,7 +150,7 @@ uflake_result_t uspi_bus_init(spi_host_device_t host, gpio_num_t mosi, gpio_num_
     esp_err_t ret = spi_bus_initialize(host, &bus_config, SPI_DMA_CH_AUTO);
     if (ret != ESP_OK)
     {
-        ESP_LOGE(TAG, "SPI bus init failed: %s", esp_err_to_name(ret));
+        UFLAKE_LOGE(TAG, "SPI bus init failed: %s", esp_err_to_name(ret));
         uflake_mutex_destroy(uspi_buses[host].mutex);
         return UFLAKE_ERROR;
     }
@@ -166,7 +165,7 @@ uflake_result_t uspi_bus_init(spi_host_device_t host, gpio_num_t mosi, gpio_num_
     uspi_buses[host].device_count = 0;
     uspi_buses[host].device_list = NULL;
 
-    ESP_LOGI(TAG, "SPI host %d initialized: MOSI=%d, MISO=%d, SCLK=%d, Max=%d bytes",
+    UFLAKE_LOGI(TAG, "SPI host %d initialized: MOSI=%d, MISO=%d, SCLK=%d, Max=%d bytes",
              host, mosi, miso, sclk, bus_config.max_transfer_sz);
 
     return UFLAKE_OK;
@@ -201,7 +200,7 @@ esp_err_t uspi_bus_deinit(spi_host_device_t host)
     uspi_buses[host].device_list = NULL;
     uspi_buses[host].device_count = 0;
 
-    ESP_LOGI(TAG, "SPI host %d deinitialized", host);
+    UFLAKE_LOGI(TAG, "SPI host %d deinitialized", host);
     return ret;
 }
 
@@ -220,7 +219,7 @@ esp_err_t uspi_device_add(spi_host_device_t host, const uspi_device_config_t *de
 
     if (uspi_buses[host].device_count >= USPI_MAX_DEVICES_PER_BUS)
     {
-        ESP_LOGE(TAG, "Maximum devices (%d) reached on host %d",
+        UFLAKE_LOGE(TAG, "Maximum devices (%d) reached on host %d",
                  USPI_MAX_DEVICES_PER_BUS, host);
         return ESP_ERR_NO_MEM;
     }
@@ -249,7 +248,7 @@ esp_err_t uspi_device_add(spi_host_device_t host, const uspi_device_config_t *de
     if (ret != ESP_OK)
     {
         uflake_mutex_unlock(uspi_buses[host].mutex);
-        ESP_LOGE(TAG, "Failed to add SPI device: %s", esp_err_to_name(ret));
+        UFLAKE_LOGE(TAG, "Failed to add SPI device: %s", esp_err_to_name(ret));
         return ret;
     }
 
@@ -324,7 +323,7 @@ esp_err_t uspi_transmit(spi_device_handle_t handle, const uint8_t *tx_buffer,
 
     if (ret != ESP_OK)
     {
-        ESP_LOGE(TAG, "SPI transmit failed: %s", esp_err_to_name(ret));
+        UFLAKE_LOGE(TAG, "SPI transmit failed: %s", esp_err_to_name(ret));
     }
 
     return ret;
@@ -348,7 +347,7 @@ esp_err_t uspi_receive(spi_device_handle_t handle, uint8_t *rx_buffer,
 
     if (ret != ESP_OK)
     {
-        ESP_LOGE(TAG, "SPI receive failed: %s", esp_err_to_name(ret));
+        UFLAKE_LOGE(TAG, "SPI receive failed: %s", esp_err_to_name(ret));
     }
 
     return ret;
@@ -372,7 +371,7 @@ esp_err_t uspi_transfer(spi_device_handle_t handle, const uint8_t *tx_buffer,
 
     if (ret != ESP_OK)
     {
-        ESP_LOGE(TAG, "SPI transfer failed: %s", esp_err_to_name(ret));
+        UFLAKE_LOGE(TAG, "SPI transfer failed: %s", esp_err_to_name(ret));
     }
 
     return ret;

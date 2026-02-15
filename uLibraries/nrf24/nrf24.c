@@ -2,7 +2,6 @@
 #include "nrf24_regs.h"
 
 #include <string.h>
-#include "esp_log.h"
 
 #include "kernel.h"
 #include "uSPI.h"
@@ -36,12 +35,12 @@ bool Nrf24_init(NRF24_t *dev)
     esp_err_t ret = uspi_device_add(dev->spiHost, &dev_cfg, &spi_handle);
     if (ret != ESP_OK)
     {
-        ESP_LOGE(TAG, "Failed to add SPI device: %s", esp_err_to_name(ret));
+        UFLAKE_LOGE(TAG, "Failed to add SPI device: %s", esp_err_to_name(ret));
         return false;
     }
 
-    ESP_LOGI(TAG, "CONFIG_CE_GPIO=%d", dev->cePin);
-    ESP_LOGI(TAG, "CONFIG_CSN_GPIO=%d", dev->csnPin);
+    UFLAKE_LOGI(TAG, "CONFIG_CE_GPIO=%d", dev->cePin);
+    UFLAKE_LOGI(TAG, "CONFIG_CSN_GPIO=%d", dev->csnPin);
 
     // gpio_pad_select_gpio(CONFIG_CE_GPIO);
     gpio_reset_pin(dev->cePin);
@@ -57,7 +56,7 @@ bool Nrf24_init(NRF24_t *dev)
     dev->spi = spi_handle;
     _nrf24_dev = dev;
 
-    ESP_LOGI(TAG, "NRF24 initialized");
+    UFLAKE_LOGI(TAG, "NRF24 initialized");
 
     return true;
 }
@@ -76,14 +75,14 @@ bool spi_write_byte(uint8_t *Dataout, size_t DataLength)
 {
     if (!_nrf24_dev || !_nrf24_dev->spi)
     {
-        ESP_LOGE(TAG, "NRF24 device not initialized");
+        UFLAKE_LOGE(TAG, "NRF24 device not initialized");
         return false;
     }
 
     esp_err_t ret = uspi_transmit(_nrf24_dev->spi, Dataout, DataLength, 100);
     if (ret != ESP_OK)
     {
-        ESP_LOGE(TAG, "SPI write failed: %s", esp_err_to_name(ret));
+        UFLAKE_LOGE(TAG, "SPI write failed: %s", esp_err_to_name(ret));
         return false;
     }
 
@@ -94,14 +93,14 @@ bool spi_read_byte(uint8_t *Datain, uint8_t *Dataout, size_t DataLength)
 {
     if (!_nrf24_dev || !_nrf24_dev->spi)
     {
-        ESP_LOGE(TAG, "NRF24 device not initialized");
+        UFLAKE_LOGE(TAG, "NRF24 device not initialized");
         return false;
     }
 
     esp_err_t ret = uspi_transfer(_nrf24_dev->spi, Dataout, Datain, DataLength, 100);
     if (ret != ESP_OK)
     {
-        ESP_LOGE(TAG, "SPI read failed: %s", esp_err_to_name(ret));
+        UFLAKE_LOGE(TAG, "SPI read failed: %s", esp_err_to_name(ret));
         return false;
     }
 
@@ -112,7 +111,7 @@ uint8_t spi_transfer(uint8_t address)
 {
     if (!_nrf24_dev || !_nrf24_dev->spi)
     {
-        ESP_LOGE(TAG, "NRF24 device not initialized");
+        UFLAKE_LOGE(TAG, "NRF24 device not initialized");
         return 0;
     }
 
@@ -120,7 +119,7 @@ uint8_t spi_transfer(uint8_t address)
     esp_err_t ret = uspi_transfer(_nrf24_dev->spi, &address, &received, 1, 100);
     if (ret != ESP_OK)
     {
-        ESP_LOGE(TAG, "SPI transfer failed: %s", esp_err_to_name(ret));
+        UFLAKE_LOGE(TAG, "SPI transfer failed: %s", esp_err_to_name(ret));
         return 0;
     }
 
@@ -171,12 +170,12 @@ bool Nrf24_isConnected(NRF24_t *dev)
     // Compare written and read addresses
     if (memcmp(test_addr, read_addr, 5) == 0)
     {
-        ESP_LOGI(TAG, "NRF24 is connected");
+        UFLAKE_LOGI(TAG, "NRF24 is connected");
         return true;
     }
     else
     {
-        ESP_LOGE(TAG, "NRF24 is NOT connected");
+        UFLAKE_LOGE(TAG, "NRF24 is NOT connected");
         return false;
     }
 }

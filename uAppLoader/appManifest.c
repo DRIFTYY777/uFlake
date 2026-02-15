@@ -1,6 +1,5 @@
 #include "appManifest.h"
 #include "appLoader.h"
-#include "esp_log.h"
 #include <string.h>
 #include <stdio.h>
 
@@ -80,7 +79,7 @@ uflake_result_t app_manifest_parse(const char *path, app_manifest_t *manifest)
     if (!path || !manifest)
         return UFLAKE_ERROR_INVALID_PARAM;
 
-    ESP_LOGI(TAG, "Parsing manifest: %s", path);
+    UFLAKE_LOGI(TAG, "Parsing manifest: %s", path);
 
     // TODO: Implement file parsing for external apps on SD card
     // This would read manifest.txt line by line and parse key=value pairs
@@ -100,14 +99,14 @@ uflake_result_t app_manifest_parse(const char *path, app_manifest_t *manifest)
     //
     // For now, just return error since SD card support is not implemented
 
-    ESP_LOGW(TAG, "Manifest parsing not yet implemented (requires SD card support)");
+    UFLAKE_LOGW(TAG, "Manifest parsing not yet implemented (requires SD card support)");
     return UFLAKE_ERROR;
 
     /*
     FILE *file = fopen(path, "r");
     if (!file)
     {
-        ESP_LOGE(TAG, "Failed to open manifest file: %s", path);
+        UFLAKE_LOGE(TAG, "Failed to open manifest file: %s", path);
         return UFLAKE_ERROR;
     }
 
@@ -196,30 +195,30 @@ uflake_result_t app_manifest_validate(const app_manifest_t *manifest)
     // Check required fields
     if (strlen(manifest->name) == 0)
     {
-        ESP_LOGE(TAG, "Manifest validation failed: name is empty");
+        UFLAKE_LOGE(TAG, "Manifest validation failed: name is empty");
         return UFLAKE_ERROR_INVALID_PARAM;
     }
 
     if (strlen(manifest->version) == 0)
     {
-        ESP_LOGE(TAG, "Manifest validation failed: version is empty");
+        UFLAKE_LOGE(TAG, "Manifest validation failed: version is empty");
         return UFLAKE_ERROR_INVALID_PARAM;
     }
 
     // Validate type
     if (manifest->type > APP_TYPE_SERVICE)
     {
-        ESP_LOGE(TAG, "Manifest validation failed: invalid type %d", manifest->type);
+        UFLAKE_LOGE(TAG, "Manifest validation failed: invalid type %d", manifest->type);
         return UFLAKE_ERROR_INVALID_PARAM;
     }
 
     // Validate stack size
     if (manifest->stack_size > 0 && manifest->stack_size < 1024)
     {
-        ESP_LOGW(TAG, "Manifest validation warning: stack size %lu is very small", manifest->stack_size);
+        UFLAKE_LOGW(TAG, "Manifest validation warning: stack size %lu is very small", manifest->stack_size);
     }
 
-    ESP_LOGI(TAG, "Manifest validation passed: %s v%s", manifest->name, manifest->version);
+    UFLAKE_LOGI(TAG, "Manifest validation passed: %s v%s", manifest->name, manifest->version);
     return UFLAKE_OK;
 }
 
@@ -255,17 +254,17 @@ void app_manifest_print(const app_manifest_t *manifest)
     if (!manifest)
         return;
 
-    ESP_LOGI(TAG, "=== App Manifest ===");
-    ESP_LOGI(TAG, "Name:        %s", manifest->name);
-    ESP_LOGI(TAG, "Version:     %s", manifest->version);
-    ESP_LOGI(TAG, "Author:      %s", manifest->author);
-    ESP_LOGI(TAG, "Description: %s", manifest->description);
-    ESP_LOGI(TAG, "Icon:        %s", manifest->icon);
-    ESP_LOGI(TAG, "Type:        %s", app_type_to_string(manifest->type));
-    ESP_LOGI(TAG, "Stack Size:  %lu bytes", manifest->stack_size);
-    ESP_LOGI(TAG, "Priority:    %lu", manifest->priority);
-    ESP_LOGI(TAG, "Requires GUI:     %s", manifest->requires_gui ? "Yes" : "No");
-    ESP_LOGI(TAG, "Requires SD Card: %s", manifest->requires_sdcard ? "Yes" : "No");
-    ESP_LOGI(TAG, "Requires Network: %s", manifest->requires_network ? "Yes" : "No");
-    ESP_LOGI(TAG, "==================");
+    UFLAKE_LOGI(TAG, "=== App Manifest ===");
+    UFLAKE_LOGI(TAG, "Name:        %s", manifest->name);
+    UFLAKE_LOGI(TAG, "Version:     %s", manifest->version);
+    UFLAKE_LOGI(TAG, "Author:      %s", manifest->author);
+    UFLAKE_LOGI(TAG, "Description: %s", manifest->description);
+    UFLAKE_LOGI(TAG, "Icon:        %s", manifest->icon);
+    UFLAKE_LOGI(TAG, "Type:        %s", app_type_to_string(manifest->type));
+    UFLAKE_LOGI(TAG, "Stack Size:  %lu bytes", manifest->stack_size);
+    UFLAKE_LOGI(TAG, "Priority:    %lu", manifest->priority);
+    UFLAKE_LOGI(TAG, "Requires GUI:     %s", manifest->requires_gui ? "Yes" : "No");
+    UFLAKE_LOGI(TAG, "Requires SD Card: %s", manifest->requires_sdcard ? "Yes" : "No");
+    UFLAKE_LOGI(TAG, "Requires Network: %s", manifest->requires_network ? "Yes" : "No");
+    UFLAKE_LOGI(TAG, "==================");
 }

@@ -2,7 +2,6 @@
 
 #include <stdio.h>
 
-#include "esp_log.h"
 #include "esp_random.h"
 #include "esp_timer.h"
 #include "sdkconfig.h"
@@ -37,14 +36,14 @@ void config_and_init_sd_card(void)
 
     if (!sdCard_init(&sd_config))
     {
-        ESP_LOGE(TAG, "Failed to initialize SD card");
+        UFLAKE_LOGE(TAG, "Failed to initialize SD card");
         return;
     }
 }
 
 void config_and_init_display()
 {
-    ESP_LOGI(TAG, "Configuring display...");
+    UFLAKE_LOGI(TAG, "Configuring display...");
 
     // Configure display structure
     display.pin_cs = GPIO_NUM_10;
@@ -64,13 +63,13 @@ void config_and_init_display()
     // Initialize display
     if (!ST7789_init(&display))
     {
-        ESP_LOGE(TAG, "Failed to initialize display");
+        UFLAKE_LOGE(TAG, "Failed to initialize display");
         return;
     }
 
     ST7789_invert_display(&display, false);
 
-    ESP_LOGI(TAG, "Display initialized successfully");
+    UFLAKE_LOGI(TAG, "Display initialized successfully");
 }
 
 // Configure and initialize NRF24L01+
@@ -87,20 +86,20 @@ void config_and_init_nrf24()
 
     if (!Nrf24_init(&nrf24_dev))
     {
-        ESP_LOGE(TAG, "Failed to initialize NRF24L01+");
+        UFLAKE_LOGE(TAG, "Failed to initialize NRF24L01+");
         return;
     }
 
-    ESP_LOGI(TAG, "NRF24L01+ initialized successfully");
+    UFLAKE_LOGI(TAG, "NRF24L01+ initialized successfully");
 
     // check connection
     if (!Nrf24_isConnected(&nrf24_dev))
     {
-        ESP_LOGI(TAG, "NRF24L01+ is connected");
+        UFLAKE_LOGI(TAG, "NRF24L01+ is connected");
     }
     else
     {
-        ESP_LOGE(TAG, "NRF24L01+ is NOT connected");
+        UFLAKE_LOGE(TAG, "NRF24L01+ is NOT connected");
     }
 }
 
@@ -137,5 +136,5 @@ void uflake_core_init(void)
 
     register_builtin_apps();
 
-    ESP_LOGI(TAG, "uFlake Core initialized successfully");
+    UFLAKE_LOGI(TAG, "uFlake Core initialized successfully");
 }

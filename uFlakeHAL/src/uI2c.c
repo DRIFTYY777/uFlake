@@ -1,5 +1,4 @@
 #include "uI2c.h"
-#include "esp_log.h"
 #include <string.h>
 
 static const char *TAG = "UI2C";
@@ -54,8 +53,8 @@ static esp_err_t add_device_to_list(i2c_bus_config_t *bus, uint8_t device_addr)
     if (existing)
     {
         existing->ref_count++;
-        ESP_LOGD(TAG, "Device 0x%02X already registered, ref_count: %d",
-                 device_addr, (int)existing->ref_count);
+        UFLAKE_LOGD(TAG, "Device 0x%02X already registered, ref_count: %d",
+                    device_addr, (int)existing->ref_count);
         return ESP_OK;
     }
 
@@ -65,7 +64,7 @@ static esp_err_t add_device_to_list(i2c_bus_config_t *bus, uint8_t device_addr)
 
     if (!node)
     {
-        ESP_LOGE(TAG, "Failed to allocate memory for device node");
+        UFLAKE_LOGE(TAG, "Failed to allocate memory for device node");
         return ESP_ERR_NO_MEM;
     }
 
@@ -79,7 +78,7 @@ static esp_err_t add_device_to_list(i2c_bus_config_t *bus, uint8_t device_addr)
     esp_err_t ret = i2c_master_bus_add_device(bus->bus_handle, &dev_cfg, &node->dev_handle);
     if (ret != ESP_OK)
     {
-        ESP_LOGE(TAG, "Failed to add device 0x%02X: %s", device_addr, esp_err_to_name(ret));
+        UFLAKE_LOGE(TAG, "Failed to add device 0x%02X: %s", device_addr, esp_err_to_name(ret));
         uflake_free(node);
         return ret;
     }
@@ -89,7 +88,7 @@ static esp_err_t add_device_to_list(i2c_bus_config_t *bus, uint8_t device_addr)
     node->next = bus->device_list;
     bus->device_list = node;
 
-    ESP_LOGI(TAG, "Added device 0x%02X to bus %d", device_addr, bus->port);
+    UFLAKE_LOGI(TAG, "Added device 0x%02X to bus %d", device_addr, bus->port);
     return ESP_OK;
 }
 
@@ -120,11 +119,11 @@ static esp_err_t remove_device_from_list(i2c_bus_config_t *bus, uint8_t device_a
                 }
 
                 uflake_free(current);
-                ESP_LOGI(TAG, "Removed device 0x%02X from bus %d", device_addr, bus->port);
+                UFLAKE_LOGI(TAG, "Removed device 0x%02X from bus %d", device_addr, bus->port);
             }
             else
             {
-                ESP_LOGD(TAG, "Device 0x%02X ref_count: %d", device_addr, (int)current->ref_count);
+                UFLAKE_LOGD(TAG, "Device 0x%02X ref_count: %d", device_addr, (int)current->ref_count);
             }
 
             return ESP_OK;
@@ -140,20 +139,20 @@ uflake_result_t i2c_bus_manager_init(i2c_port_t port, gpio_num_t sda_pin, gpio_n
 {
     if (port >= I2C_NUM_MAX)
     {
-        ESP_LOGE(TAG, "Invalid I2C port: %d", port);
+        UFLAKE_LOGE(TAG, "Invalid I2C port: %d", port);
         return UFLAKE_ERROR_INVALID_PARAM;
     }
 
     if (u_i2c_buses[port].is_initialized)
     {
-        ESP_LOGW(TAG, "I2C port %d already initialized", port);
+        UFLAKE_LOGW(TAG, "I2C port %d already initialized", port);
         return UFLAKE_OK;
     }
 
     // Create mutex for this bus
     if (uflake_mutex_create(&u_i2c_buses[port].mutex) != UFLAKE_OK)
     {
-        ESP_LOGE(TAG, "Failed to create mutex for I2C port %d", port);
+        UFLAKE_LOGE(TAG, "Failed to create mutex for I2C port %d", port);
         return UFLAKE_ERROR_MEMORY;
     }
 
@@ -174,7 +173,7 @@ uflake_result_t i2c_bus_manager_init(i2c_port_t port, gpio_num_t sda_pin, gpio_n
     esp_err_t err = i2c_new_master_bus(&bus_config, &u_i2c_buses[port].bus_handle);
     if (err != ESP_OK)
     {
-        ESP_LOGE(TAG, "I2C bus init failed: %s", esp_err_to_name(err));
+        UFLAKE_LOGE(TAG, "I2C bus init failed: %s", esp_err_to_name(err));
         uflake_mutex_destroy(u_i2c_buses[port].mutex);
         return UFLAKE_ERROR;
     }
@@ -187,8 +186,8 @@ uflake_result_t i2c_bus_manager_init(i2c_port_t port, gpio_num_t sda_pin, gpio_n
     u_i2c_buses[port].is_initialized = true;
     u_i2c_buses[port].device_list = NULL;
 
-    ESP_LOGI(TAG, "I2C bus %d initialized: SDA=%d, SCL=%d, Freq=%d Hz",
-             port, sda_pin, scl_pin, (int)freq_hz);
+    UFLAKE_LOGI(TAG, "I2C bus %d initialized: SDA=%d, SCL=%d, Freq=%d Hz",
+                port, sda_pin, scl_pin, (int)freq_hz);
 
     return UFLAKE_OK;
 }
@@ -221,7 +220,7 @@ esp_err_t i2c_bus_manager_deinit(i2c_port_t port)
     u_i2c_buses[port].is_initialized = false;
     u_i2c_buses[port].device_list = NULL;
 
-    ESP_LOGI(TAG, "I2C bus %d deinitialized", port);
+    UFLAKE_LOGI(TAG, "I2C bus %d deinitialized", port);
     return err;
 }
 
@@ -234,7 +233,7 @@ esp_err_t i2c_bus_manager_add_device(i2c_port_t port, uint8_t device_address)
 
     if (device_address > 0x7F)
     {
-        ESP_LOGE(TAG, "Invalid I2C address: 0x%02X", device_address);
+        UFLAKE_LOGE(TAG, "Invalid I2C address: 0x%02X", device_address);
         return ESP_ERR_INVALID_ARG;
     }
 
@@ -275,7 +274,7 @@ esp_err_t i2c_bus_manager_scan(i2c_port_t port, uint8_t *found_devices,
     uflake_mutex_lock(u_i2c_buses[port].mutex, UINT32_MAX);
 
     *found_count = 0;
-    ESP_LOGI(TAG, "Scanning I2C bus %d...", port);
+    UFLAKE_LOGI(TAG, "Scanning I2C bus %d...", port);
 
     // New API Use i2c_master_probe
     for (uint16_t addr = 0x08; addr < 0x78; addr++)
@@ -288,7 +287,7 @@ esp_err_t i2c_bus_manager_scan(i2c_port_t port, uint8_t *found_devices,
             {
                 found_devices[*found_count] = (uint8_t)addr;
                 (*found_count)++;
-                ESP_LOGI(TAG, "Found device at 0x%02X", addr);
+                UFLAKE_LOGI(TAG, "Found device at 0x%02X", addr);
             }
         }
 
@@ -297,7 +296,7 @@ esp_err_t i2c_bus_manager_scan(i2c_port_t port, uint8_t *found_devices,
 
     uflake_mutex_unlock(u_i2c_buses[port].mutex);
 
-    ESP_LOGI(TAG, "Scan complete: found %d devices", (int)*found_count);
+    UFLAKE_LOGI(TAG, "Scan complete: found %d devices", (int)*found_count);
     return ESP_OK;
 }
 
@@ -325,7 +324,7 @@ esp_err_t i2c_manager_write(i2c_port_t port, uint8_t device_addr,
     if (!dev_node)
     {
         uflake_mutex_unlock(u_i2c_buses[port].mutex);
-        ESP_LOGE(TAG, "Device 0x%02X not registered", device_addr);
+        UFLAKE_LOGE(TAG, "Device 0x%02X not registered", device_addr);
         return ESP_ERR_NOT_FOUND;
     }
 
@@ -336,7 +335,7 @@ esp_err_t i2c_manager_write(i2c_port_t port, uint8_t device_addr,
 
     if (ret != ESP_OK)
     {
-        ESP_LOGE(TAG, "I2C write failed: %s", esp_err_to_name(ret));
+        UFLAKE_LOGE(TAG, "I2C write failed: %s", esp_err_to_name(ret));
     }
 
     return ret;
@@ -371,7 +370,7 @@ esp_err_t i2c_manager_read(i2c_port_t port, uint8_t device_addr,
 
     if (ret != ESP_OK)
     {
-        ESP_LOGE(TAG, "I2C read failed: %s", esp_err_to_name(ret));
+        UFLAKE_LOGE(TAG, "I2C read failed: %s", esp_err_to_name(ret));
     }
 
     return ret;
@@ -409,7 +408,7 @@ esp_err_t i2c_manager_write_read(i2c_port_t port, uint8_t device_addr,
 
     if (ret != ESP_OK)
     {
-        ESP_LOGE(TAG, "I2C write-read failed: %s", esp_err_to_name(ret));
+        UFLAKE_LOGE(TAG, "I2C write-read failed: %s", esp_err_to_name(ret));
     }
 
     return ret;

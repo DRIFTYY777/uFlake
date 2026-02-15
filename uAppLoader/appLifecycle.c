@@ -1,8 +1,6 @@
 #include "appLifecycle.h"
 #include "appLoader.h"
-#include "esp_log.h"
 #include "esp_timer.h"
-#include "kernel.h"
 
 static const char *TAG = "APP_LIFECYCLE";
 
@@ -16,7 +14,7 @@ extern uflake_result_t app_loader_resume(uint32_t app_id);
 
 uflake_result_t app_lifecycle_init(void)
 {
-    ESP_LOGI(TAG, "App lifecycle manager initialized");
+    UFLAKE_LOGI(TAG, "App lifecycle manager initialized");
     return UFLAKE_OK;
 }
 
@@ -31,17 +29,17 @@ void app_task_wrapper(void *arg)
 
     if (!app || !app->entry_point)
     {
-        ESP_LOGE(TAG, "Invalid app or entry point for ID %lu", app_id);
+        UFLAKE_LOGE(TAG, "Invalid app or entry point for ID %lu", app_id);
         vTaskDelete(NULL);
         return;
     }
 
-    ESP_LOGI(TAG, "Starting app: %s", app->manifest.name);
+    UFLAKE_LOGI(TAG, "Starting app: %s", app->manifest.name);
 
     app_entry_fn entry = (app_entry_fn)app->entry_point;
     entry(); // Call app_main()
 
-    ESP_LOGI(TAG, "App %s exited", app->manifest.name);
+    UFLAKE_LOGI(TAG, "App %s exited", app->manifest.name);
 
     // Clean up - mark as stopped
     app->state = APP_STATE_STOPPED;
@@ -71,13 +69,13 @@ uflake_result_t app_lifecycle_launch(app_descriptor_t *app,
 {
     if (!app || !current_app_id)
     {
-        ESP_LOGE(TAG, "Invalid parameters");
+        UFLAKE_LOGE(TAG, "Invalid parameters");
         return UFLAKE_ERROR_INVALID_PARAM;
     }
 
     if (app->state == APP_STATE_RUNNING)
     {
-        ESP_LOGW(TAG, "App %s already running", app->manifest.name);
+        UFLAKE_LOGW(TAG, "App %s already running", app->manifest.name);
         return UFLAKE_OK;
     }
 
@@ -87,7 +85,7 @@ uflake_result_t app_lifecycle_launch(app_descriptor_t *app,
         app_descriptor_t *launcher = app_loader_find_app_by_id(launcher_id);
         if (launcher && launcher->state == APP_STATE_RUNNING)
         {
-            ESP_LOGI(TAG, "Pausing launcher");
+            UFLAKE_LOGI(TAG, "Pausing launcher");
             launcher->state = APP_STATE_PAUSED;
             if (launcher->task_handle)
             {
@@ -119,7 +117,7 @@ uflake_result_t app_lifecycle_launch(app_descriptor_t *app,
 
     if (result != UFLAKE_OK)
     {
-        ESP_LOGE(TAG, "Failed to create task for app %s", app->manifest.name);
+        UFLAKE_LOGE(TAG, "Failed to create task for app %s", app->manifest.name);
         return result;
     }
 
@@ -131,7 +129,7 @@ uflake_result_t app_lifecycle_launch(app_descriptor_t *app,
     app->last_run_time = (uint32_t)(esp_timer_get_time() / 1000000);
     *current_app_id = app->app_id;
 
-    ESP_LOGI(TAG, "Launched app: %s (ID: %lu)", app->manifest.name, app->app_id);
+    UFLAKE_LOGI(TAG, "Launched app: %s (ID: %lu)", app->manifest.name, app->app_id);
     return UFLAKE_OK;
 }
 
@@ -141,7 +139,7 @@ uflake_result_t app_lifecycle_terminate(app_descriptor_t *app,
 {
     if (!app || !current_app_id)
     {
-        ESP_LOGE(TAG, "Invalid parameters");
+        UFLAKE_LOGE(TAG, "Invalid parameters");
         return UFLAKE_ERROR_INVALID_PARAM;
     }
 
@@ -150,7 +148,7 @@ uflake_result_t app_lifecycle_terminate(app_descriptor_t *app,
         return UFLAKE_OK; // Already stopped
     }
 
-    ESP_LOGI(TAG, "Terminating app: %s", app->manifest.name);
+    UFLAKE_LOGI(TAG, "Terminating app: %s", app->manifest.name);
 
     if (app->task_handle)
     {
@@ -177,7 +175,7 @@ uflake_result_t app_lifecycle_pause(app_descriptor_t *app)
 {
     if (!app)
     {
-        ESP_LOGE(TAG, "Invalid parameters");
+        UFLAKE_LOGE(TAG, "Invalid parameters");
         return UFLAKE_ERROR_INVALID_PARAM;
     }
 
@@ -186,7 +184,7 @@ uflake_result_t app_lifecycle_pause(app_descriptor_t *app)
         return UFLAKE_OK;
     }
 
-    ESP_LOGI(TAG, "Pausing app: %s", app->manifest.name);
+    UFLAKE_LOGI(TAG, "Pausing app: %s", app->manifest.name);
 
     if (app->task_handle)
     {
@@ -203,7 +201,7 @@ uflake_result_t app_lifecycle_resume(app_descriptor_t *app,
 {
     if (!app || !current_app_id)
     {
-        ESP_LOGE(TAG, "Invalid parameters");
+        UFLAKE_LOGE(TAG, "Invalid parameters");
         return UFLAKE_ERROR_INVALID_PARAM;
     }
 
@@ -212,7 +210,7 @@ uflake_result_t app_lifecycle_resume(app_descriptor_t *app,
         return UFLAKE_OK;
     }
 
-    ESP_LOGI(TAG, "Resuming app: %s", app->manifest.name);
+    UFLAKE_LOGI(TAG, "Resuming app: %s", app->manifest.name);
 
     if (app->task_handle)
     {

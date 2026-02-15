@@ -39,11 +39,11 @@ static bool is_key_pressed_hw(InputKey key, uint16_t hw_reading)
 
 uflake_result_t input_init(void)
 {
-    ESP_LOGI(TAG, "Initializing simple input service");
+    UFLAKE_LOGI(TAG, "Initializing simple input service");
 
     if (g_input.initialized)
     {
-        ESP_LOGW(TAG, "Input already initialized");
+        UFLAKE_LOGW(TAG, "Input already initialized");
         return UFLAKE_OK;
     }
 
@@ -74,7 +74,7 @@ uflake_result_t input_init(void)
     memset(&g_input, 0, sizeof(InputService));
     g_input.initialized = true;
 
-    ESP_LOGI(TAG, "Input service initialized");
+    UFLAKE_LOGI(TAG, "Input service initialized");
     return UFLAKE_OK;
 }
 
@@ -86,7 +86,7 @@ uflake_result_t input_deinit(void)
     }
 
     g_input.initialized = false;
-    ESP_LOGI(TAG, "Input service deinitialized");
+    UFLAKE_LOGI(TAG, "Input service deinitialized");
     return UFLAKE_OK;
 }
 

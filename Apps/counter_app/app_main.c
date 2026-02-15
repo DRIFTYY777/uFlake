@@ -1,8 +1,6 @@
 #include <stdio.h>
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "esp_log.h"
 #include "appLoader.h"
+#include "logger.h"
 
 static const char *TAG = "CounterApp";
 
@@ -41,8 +39,8 @@ void counter_app_main(void)
 {
     int counter = 0;
 
-    ESP_LOGI(TAG, "Counter App Started - Testing OS-level infinite loop protection!");
-    ESP_LOGI(TAG, "This app will spin like a Windows/Linux program - no watchdog concerns!");
+    UFLAKE_LOGI(TAG, "Counter App Started - Testing OS-level infinite loop protection!");
+    UFLAKE_LOGI(TAG, "This app will spin like a Windows/Linux program - no watchdog concerns!");
 
     // Pure infinite loop - just like you'd write in Windows/Linux
     // No delays, no yields, no hardware concerns - pure user code
@@ -58,5 +56,5 @@ void counter_app_main(void)
         vTaskDelay(pdMS_TO_TICKS(100)); // Delay for 100 milliseconds
     }
 
-    ESP_LOGI(TAG, "Counter app completed - uFlake OS handled infinite loop successfully!");
+    UFLAKE_LOGI(TAG, "Counter app completed - uFlake OS handled infinite loop successfully!");
 }

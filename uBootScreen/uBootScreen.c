@@ -1,5 +1,4 @@
 #include "uBootScreen.h"
-#include "esp_log.h"
 #include "esp_timer.h"
 #include "esp_random.h"
 
@@ -206,7 +205,7 @@ static void boot_screen_task(void *arg)
 {
     st7789_driver_t *driver = (st7789_driver_t *)arg;
 
-    ESP_LOGI(TAG, "Boot screen started");
+    UFLAKE_LOGI(TAG, "Boot screen started");
 
     const int display_height = driver->display_height;
     const int display_width = driver->display_width;
@@ -268,7 +267,7 @@ static void boot_screen_task(void *arg)
     // Ensure backlight is at full brightness after animation
     ugpio_pwm_set_duty(BACKLIGHT_PIN, 100.0f);
 
-    ESP_LOGI(TAG, "Boot screen completed");
+    UFLAKE_LOGI(TAG, "Boot screen completed");
 
     vTaskDelete(NULL);
 }
@@ -278,7 +277,7 @@ esp_err_t uboot_screen_start(st7789_driver_t *driver)
 {
     if (!driver)
     {
-        ESP_LOGE(TAG, "Invalid driver");
+        UFLAKE_LOGE(TAG, "Invalid driver");
         return ESP_ERR_INVALID_ARG;
     }
 
@@ -290,7 +289,7 @@ esp_err_t uboot_screen_start(st7789_driver_t *driver)
     // Initialize dither table
     randomize_dither_table();
 
-    ESP_LOGI(TAG, "Creating boot screen task");
+    UFLAKE_LOGI(TAG, "Creating boot screen task");
 
     uint32_t gui_pid;
     if (uflake_process_create("Boot_Screen_Task",
@@ -300,7 +299,7 @@ esp_err_t uboot_screen_start(st7789_driver_t *driver)
                               BOOT_SCREEN_TASK_PRIORITY,
                               &gui_pid) != UFLAKE_OK)
     {
-        ESP_LOGE(TAG, "Failed to create GUI process");
+        UFLAKE_LOGE(TAG, "Failed to create GUI process");
         return ESP_FAIL;
     }
 
@@ -312,7 +311,7 @@ void uboot_screen_stop(void)
 {
     if (boot_state.running)
     {
-        ESP_LOGI(TAG, "Stopping boot screen");
+        UFLAKE_LOGI(TAG, "Stopping boot screen");
         boot_state.running = false;
 
         // Wait for task to finish

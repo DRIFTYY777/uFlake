@@ -1,6 +1,5 @@
 #include <stdio.h>
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
+
 #include "esp_log.h"
 #include "appLoader.h"
 
@@ -28,10 +27,9 @@ const app_bundle_t test_app = {
 
 void test_app_main(void)
 {
-    ESP_LOGI(TAG, "Test App Started - Testing OS-level infinite loop protection!");
+    UFLAKE_LOGI(TAG, "Test App Started - Testing OS-level infinite loop protection!");
 
     while (1)
     {
-        
-    }
+        }
 }

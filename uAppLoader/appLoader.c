@@ -12,7 +12,6 @@
 #include "appLifecycle.h"
 #include "appManifest.h"
 #include "appService.h"
-#include "esp_log.h"
 #include "esp_timer.h"
 #include <string.h>
 
@@ -55,14 +54,14 @@ uflake_result_t app_loader_init(void)
 {
     if (initialized)
     {
-        ESP_LOGW(TAG, "App loader already initialized");
+        UFLAKE_LOGW(TAG, "App loader already initialized");
         return UFLAKE_OK;
     }
 
     // Create mutex using uFlake API
     if (uflake_mutex_create(&app_loader_mutex) != UFLAKE_OK)
     {
-        ESP_LOGE(TAG, "Failed to create mutex");
+        UFLAKE_LOGE(TAG, "Failed to create mutex");
         return UFLAKE_ERROR_MEMORY;
     }
 
@@ -77,30 +76,30 @@ uflake_result_t app_loader_init(void)
     result = app_lifecycle_init();
     if (result != UFLAKE_OK)
     {
-        ESP_LOGE(TAG, "Failed to initialize lifecycle manager");
+        UFLAKE_LOGE(TAG, "Failed to initialize lifecycle manager");
         return result;
     }
 
     result = service_manager_init();
     if (result != UFLAKE_OK)
     {
-        ESP_LOGE(TAG, "Failed to initialize service manager");
+        UFLAKE_LOGE(TAG, "Failed to initialize service manager");
         return result;
     }
 
     initialized = true;
-    ESP_LOGI(TAG, "App loader initialized");
+    UFLAKE_LOGI(TAG, "App loader initialized");
     return UFLAKE_OK;
 }
 
 uflake_result_t app_loader_scan_external_apps(void)
 {
-    ESP_LOGI(TAG, "Scanning external apps from SD card: %s", EXTERNAL_APPS_FOLDER);
+    UFLAKE_LOGI(TAG, "Scanning external apps from SD card: %s", EXTERNAL_APPS_FOLDER);
 
     // TODO: Implement .fap file scanning and loading from SD card
     // This WOULD work for external apps since they're files on storage
 
-    ESP_LOGI(TAG, "External app scan complete (feature not yet implemented)");
+    UFLAKE_LOGI(TAG, "External app scan complete (feature not yet implemented)");
     return UFLAKE_OK;
 }
 
@@ -111,7 +110,7 @@ uint32_t app_loader_register(const app_bundle_t *app_bundle)
 {
     if (!app_bundle || !app_bundle->manifest || !app_bundle->entry_point)
     {
-        ESP_LOGE(TAG, "Invalid app bundle");
+        UFLAKE_LOGE(TAG, "Invalid app bundle");
         return 0;
     }
 
@@ -127,13 +126,13 @@ uint32_t app_loader_register_internal(const app_manifest_t *manifest,
 {
     if (!initialized || !manifest || !entry_point)
     {
-        ESP_LOGE(TAG, "Invalid parameters for app registration");
+        UFLAKE_LOGE(TAG, "Invalid parameters for app registration");
         return 0;
     }
 
     if (app_count >= MAX_APPS)
     {
-        ESP_LOGE(TAG, "App registry full (max %d apps)", MAX_APPS);
+        UFLAKE_LOGE(TAG, "App registry full (max %d apps)", MAX_APPS);
         return 0;
     }
 
@@ -156,11 +155,11 @@ uint32_t app_loader_register_internal(const app_manifest_t *manifest,
     if (is_launcher)
     {
         launcher_app_id = app->app_id;
-        ESP_LOGI(TAG, "Registered launcher: %s (ID: %lu)", manifest->name, app->app_id);
+        UFLAKE_LOGI(TAG, "Registered launcher: %s (ID: %lu)", manifest->name, app->app_id);
     }
     else
     {
-        ESP_LOGI(TAG, "Registered app: %s v%s (ID: %lu)",
+        UFLAKE_LOGI(TAG, "Registered app: %s v%s (ID: %lu)",
                  manifest->name, manifest->version, app->app_id);
     }
 
@@ -172,7 +171,7 @@ uint32_t app_loader_register_internal(const app_manifest_t *manifest,
 
 uint32_t app_loader_register_external(const char *fap_path)
 {
-    ESP_LOGI(TAG, "External app loading not yet implemented: %s", fap_path);
+    UFLAKE_LOGI(TAG, "External app loading not yet implemented: %s", fap_path);
     // TODO: Load .fap file, parse manifest, register
     return 0;
 }
@@ -192,7 +191,7 @@ uflake_result_t app_loader_launch(uint32_t app_id)
     if (!app)
     {
         uflake_mutex_unlock(app_loader_mutex);
-        ESP_LOGE(TAG, "App ID %lu not found", app_id);
+        UFLAKE_LOGE(TAG, "App ID %lu not found", app_id);
         return UFLAKE_ERROR_NOT_FOUND;
     }
 
@@ -336,13 +335,13 @@ void app_loader_check_force_exit(bool right_pressed, bool back_pressed)
         // Buttons just pressed
         force_exit_buttons_pressed = true;
         force_exit_press_time = esp_timer_get_time() / 1000; // Convert to milliseconds
-        ESP_LOGI(TAG, "Force exit combo detected, hold for %d ms", FORCE_EXIT_HOLD_TIME_MS);
+        UFLAKE_LOGI(TAG, "Force exit combo detected, hold for %d ms", FORCE_EXIT_HOLD_TIME_MS);
     }
     else if (!both_pressed && force_exit_buttons_pressed)
     {
         // Buttons released before timeout
         force_exit_buttons_pressed = false;
-        ESP_LOGI(TAG, "Force exit cancelled");
+        UFLAKE_LOGI(TAG, "Force exit cancelled");
     }
     else if (both_pressed && force_exit_buttons_pressed)
     {
@@ -351,7 +350,7 @@ void app_loader_check_force_exit(bool right_pressed, bool back_pressed)
         if ((now - force_exit_press_time) >= FORCE_EXIT_HOLD_TIME_MS)
         {
             force_exit_buttons_pressed = false;
-            ESP_LOGI(TAG, "Force exit triggered!");
+            UFLAKE_LOGI(TAG, "Force exit triggered!");
 
             // Terminate current app
             if (current_app_id != 0)

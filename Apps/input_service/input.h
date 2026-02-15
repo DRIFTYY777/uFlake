@@ -6,7 +6,6 @@
 #include <string.h>
 
 #include "kernel.h"
-#include "esp_log.h"
 
 #ifdef __cplusplus
 extern "C"

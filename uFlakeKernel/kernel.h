@@ -32,6 +32,8 @@ extern "C"
 #include "freertos/semphr.h"
 #include "freertos/queue.h"
 
+#include "esp_timer.h"
+
 //  Move subsystem includes AFTER forward declarations
 #include "memory_manager.h"
 #include "scheduler.h"

@@ -4,7 +4,6 @@
 #include <sys/stat.h>
 
 #include "driver/gpio.h"
-#include "esp_log.h"
 #include "uSPI.h"
 #include "kernel.h"
 
@@ -35,13 +34,13 @@ int sdCard_init(SD_CardConfig *cfg)
 
     sdmmc_card_t *card;
     const char mount_point[] = MOUNT_POINT;
-    ESP_LOGI(TAG, "Initializing SD card");
+    UFLAKE_LOGI(TAG, "Initializing SD card");
 
     // Use settings defined above to initialize SD card and mount FAT filesystem.
     // Note: esp_vfs_fat_sdmmc/sdspi_mount is all-in-one convenience functions.
     // Please check its source code and implement error recovery when developing
     // production applications.
-    ESP_LOGI(TAG, "Using SPI peripheral");
+    UFLAKE_LOGI(TAG, "Using SPI peripheral");
 
     // By default, SD card frequency is initialized to SDMMC_FREQ_DEFAULT (20MHz)
     // For setting a specific frequency, use host.max_freq_khz (range 400kHz - 20MHz for SDSPI)
@@ -65,7 +64,7 @@ int sdCard_init(SD_CardConfig *cfg)
     ret = sd_pwr_ctrl_new_on_chip_ldo(&ldo_config, &pwr_ctrl_handle);
     if (ret != ESP_OK)
     {
-        ESP_LOGE(TAG, "Failed to create a new on-chip LDO power control driver");
+        UFLAKE_LOGE(TAG, "Failed to create a new on-chip LDO power control driver");
         return 0;
     }
     host.pwr_ctrl_handle = pwr_ctrl_handle;
@@ -79,7 +78,7 @@ int sdCard_init(SD_CardConfig *cfg)
     // ret = spi_bus_initialize(host.slot, &bus_cfg, SDSPI_DEFAULT_DMA);
     // if (ret != ESP_OK)
     // {
-    //     ESP_LOGE(TAG, "Failed to initialize bus.");
+    //     UFLAKE_LOGE(TAG, "Failed to initialize bus.");
     //     return 0;
     // }
 
@@ -89,7 +88,7 @@ int sdCard_init(SD_CardConfig *cfg)
     slot_config.gpio_cs = config->csPin;
     slot_config.host_id = host.slot;
 
-    ESP_LOGI(TAG, "Mounting filesystem");
+    UFLAKE_LOGI(TAG, "Mounting filesystem");
     /* give SD card time to power up / settle */
 
     vTaskDelay(pdMS_TO_TICKS(100));
@@ -100,12 +99,12 @@ int sdCard_init(SD_CardConfig *cfg)
     {
         if (ret == ESP_FAIL)
         {
-            ESP_LOGE(TAG, "Failed to mount filesystem. "
+            UFLAKE_LOGE(TAG, "Failed to mount filesystem. "
                           "If you want the card to be formatted, set the CONFIG_EXAMPLE_FORMAT_IF_MOUNT_FAILED menuconfig option.");
         }
         else
         {
-            ESP_LOGE(TAG, "Failed to initialize the card (%s). "
+            UFLAKE_LOGE(TAG, "Failed to initialize the card (%s). "
                           "Make sure SD card lines have pull-up resistors in place.",
                      esp_err_to_name(ret));
 #ifdef CONFIG_EXAMPLE_DEBUG_PIN_CONNECTIONS
@@ -114,7 +113,7 @@ int sdCard_init(SD_CardConfig *cfg)
         }
         return 0;
     }
-    ESP_LOGI(TAG, "Filesystem mounted");
+    UFLAKE_LOGI(TAG, "Filesystem mounted");
 
     // Card has been initialized, print its properties
     sdmmc_card_print_info(stdout, card);
@@ -126,7 +125,7 @@ void sdCard_deinit(void)
 {
     if (!sd_is_mounted)
     {
-        ESP_LOGW(TAG, "SD card is not mounted, skipping unmount");
+        UFLAKE_LOGW(TAG, "SD card is not mounted, skipping unmount");
         return;
     }
 
@@ -136,7 +135,7 @@ void sdCard_deinit(void)
     uspi_device_remove(config->spi);
 
     sd_is_mounted = false;
-    ESP_LOGI(TAG, "SD card unmounted");
+    UFLAKE_LOGI(TAG, "SD card unmounted");
 }
 
 // Handler tasks for init and deinit
@@ -146,17 +145,17 @@ static void sd_init_handler(void *arg)
 
     if (gpio_get_level((gpio_num_t)config->sdDetectPin) == 0 && !sd_is_mounted)
     {
-        ESP_LOGI(TAG, "Initializing SD card from interrupt...");
+        UFLAKE_LOGI(TAG, "Initializing SD card from interrupt...");
         int ret = sdCard_init(config);
         if (ret != 1)
         {
-            ESP_LOGE(TAG, "SD card initialization failed from interrupt");
+            UFLAKE_LOGE(TAG, "SD card initialization failed from interrupt");
             // Publish error event
             uflake_event_publish("sd.init.failed", EVENT_TYPE_ERROR, NULL, 0);
         }
         else
         {
-            ESP_LOGI(TAG, "SD card initialized successfully from interrupt");
+            UFLAKE_LOGI(TAG, "SD card initialized successfully from interrupt");
             // Publish success event
             uflake_event_publish("sd.init.success", EVENT_TYPE_HARDWARE, NULL, 0);
         }
@@ -172,7 +171,7 @@ static void sd_deinit_handler(void *arg)
 
     if (gpio_get_level((gpio_num_t)config->sdDetectPin) == 1 && sd_is_mounted)
     {
-        ESP_LOGI(TAG, "Unmounting SD card from interrupt...");
+        UFLAKE_LOGI(TAG, "Unmounting SD card from interrupt...");
         sdCard_deinit();
         // Publish removal event
         uflake_event_publish("sd.removed", EVENT_TYPE_HARDWARE, NULL, 0);
@@ -227,7 +226,7 @@ int sdCard_setupDetectInterrupt(SD_CardConfig *cfg)
 {
     if (cfg->sdDetectPin == SD_DETECT_PIN_DISABLED)
     {
-        ESP_LOGI(TAG, "SD detect pin disabled, skipping interrupt setup");
+        UFLAKE_LOGI(TAG, "SD detect pin disabled, skipping interrupt setup");
         return 1;
     }
 
@@ -245,7 +244,7 @@ int sdCard_setupDetectInterrupt(SD_CardConfig *cfg)
     esp_err_t ret = gpio_config(&io_conf);
     if (ret != ESP_OK)
     {
-        ESP_LOGE(TAG, "Failed to configure SD detect pin: %s", esp_err_to_name(ret));
+        UFLAKE_LOGE(TAG, "Failed to configure SD detect pin: %s", esp_err_to_name(ret));
         return 0;
     }
 
@@ -253,7 +252,7 @@ int sdCard_setupDetectInterrupt(SD_CardConfig *cfg)
     ret = gpio_install_isr_service(0);
     if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE)
     {
-        ESP_LOGE(TAG, "Failed to install GPIO ISR service: %s", esp_err_to_name(ret));
+        UFLAKE_LOGE(TAG, "Failed to install GPIO ISR service: %s", esp_err_to_name(ret));
         return 0;
     }
 
@@ -261,21 +260,21 @@ int sdCard_setupDetectInterrupt(SD_CardConfig *cfg)
     ret = gpio_isr_handler_add((gpio_num_t)cfg->sdDetectPin, sd_detect_isr_handler, (void *)(int)cfg->sdDetectPin);
     if (ret != ESP_OK)
     {
-        ESP_LOGE(TAG, "Failed to add ISR handler: %s", esp_err_to_name(ret));
+        UFLAKE_LOGE(TAG, "Failed to add ISR handler: %s", esp_err_to_name(ret));
         return 0;
     }
 
-    ESP_LOGI(TAG, "SD card detect interrupt configured on pin %d", cfg->sdDetectPin);
+    UFLAKE_LOGI(TAG, "SD card detect interrupt configured on pin %d", cfg->sdDetectPin);
 
     // Check current state and initialize if card is already present
     if (gpio_get_level((gpio_num_t)cfg->sdDetectPin) == 0)
     {
-        ESP_LOGI(TAG, "SD card already present, initializing...");
+        UFLAKE_LOGI(TAG, "SD card already present, initializing...");
         vTaskDelay(pdMS_TO_TICKS(200));
         int init_ret = sdCard_init(cfg);
         if (init_ret != 1)
         {
-            ESP_LOGW(TAG, "Initial SD card initialization failed");
+            UFLAKE_LOGW(TAG, "Initial SD card initialization failed");
         }
     }
 
@@ -287,6 +286,6 @@ void sdCard_removeDetectInterrupt(void)
     if (config != NULL && config->sdDetectPin != SD_DETECT_PIN_DISABLED)
     {
         gpio_isr_handler_remove((gpio_num_t)config->sdDetectPin);
-        ESP_LOGI(TAG, "SD card detect interrupt removed");
+        UFLAKE_LOGI(TAG, "SD card detect interrupt removed");
     }
 }

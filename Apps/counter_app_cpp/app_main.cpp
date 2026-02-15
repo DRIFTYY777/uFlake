@@ -14,9 +14,7 @@
 // Wrap C headers in extern "C" block
 extern "C"
 {
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "esp_log.h"
+#include "logger.h"
 #include "appLoader.h"
 }
 
@@ -66,8 +64,8 @@ extern "C" void counter_cpp_app_main(void)
 {
     int counter = 0;
 
-    ESP_LOGI(TAG, "Counter App (C++) Started - Same C-style code!");
-    ESP_LOGI(TAG, "This demonstrates .cpp file with C programming style");
+    UFLAKE_LOGI(TAG, "Counter App (C++) Started - Same C-style code!");
+    UFLAKE_LOGI(TAG, "This demonstrates .cpp file with C programming style");
 
     // Pure infinite loop - C-style programming in C++ file
     // Note: Can use 'true' instead of '1' - but either works!
@@ -83,7 +81,7 @@ extern "C" void counter_cpp_app_main(void)
         vTaskDelay(pdMS_TO_TICKS(100)); // Delay for 100 milliseconds
     }
 
-    ESP_LOGI(TAG, "Counter app (C++) completed successfully!");
+    UFLAKE_LOGI(TAG, "Counter app (C++) completed successfully!");
 }
 
 // ============================================================================

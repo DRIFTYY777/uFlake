@@ -38,11 +38,6 @@ static void process_wrapper(void *args)
 
     ESP_LOGI(TAG, "Process %s (PID: %d) started", process->name, (int)process->pid);
 
-    // DO NOT subscribe user tasks to ESP-IDF watchdog
-    // The kernel's tick hook handles watchdog feeding automatically
-    // This allows user tasks to run infinite loops without timeouts
-    ESP_LOGI(TAG, "Process %s running with automatic watchdog protection", process->name);
-
     // Free wrapper args now that we've extracted everything
     uflake_free(wrapper_args);
 

@@ -7,7 +7,8 @@
 
 #include "esp_heap_caps.h"
 #include "esp_log.h"
-#include "esp_err.h"
+
+#include "logger.h"
 
 /* ESP NEW JPEG (Correct API from esp_new_jpeg) */
 #include "esp_jpeg_dec.h"
@@ -66,7 +67,7 @@ static bool decode_jpeg(const img_reader_t *r,
     jpg_buf = malloc(jpg_size);
     if (!jpg_buf)
     {
-        ESP_LOGE(TAG, "Failed to allocate JPEG input buffer");
+        UFLAKE_LOGE(TAG, "Failed to allocate JPEG input buffer");
         return false;
     }
 
@@ -74,7 +75,7 @@ static bool decode_jpeg(const img_reader_t *r,
     size_t read_size = r->read(r->user_ctx, jpg_buf, jpg_size);
     if (read_size != jpg_size)
     {
-        ESP_LOGE(TAG, "Failed to read JPEG file");
+        UFLAKE_LOGE(TAG, "Failed to read JPEG file");
         free(jpg_buf);
         return false;
     }
@@ -146,7 +147,7 @@ static bool decode_jpeg(const img_reader_t *r,
     ret = jpeg_dec_open(&config, &jpeg_dec);
     if (ret != JPEG_ERR_OK)
     {
-        ESP_LOGE(TAG, "JPEG decoder init failed: %d", ret);
+        UFLAKE_LOGE(TAG, "JPEG decoder init failed: %d", ret);
         free(jpg_buf);
         return false;
     }
@@ -155,7 +156,7 @@ static bool decode_jpeg(const img_reader_t *r,
     jpeg_io = calloc(1, sizeof(jpeg_dec_io_t));
     if (!jpeg_io)
     {
-        ESP_LOGE(TAG, "Failed to allocate IO structure");
+        UFLAKE_LOGE(TAG, "Failed to allocate IO structure");
         ret = JPEG_ERR_NO_MEM;
         goto cleanup;
     }
@@ -164,7 +165,7 @@ static bool decode_jpeg(const img_reader_t *r,
     out_info = calloc(1, sizeof(jpeg_dec_header_info_t));
     if (!out_info)
     {
-        ESP_LOGE(TAG, "Failed to allocate output info");
+        UFLAKE_LOGE(TAG, "Failed to allocate output info");
         ret = JPEG_ERR_NO_MEM;
         goto cleanup;
     }
@@ -177,7 +178,7 @@ static bool decode_jpeg(const img_reader_t *r,
     ret = jpeg_dec_parse_header(jpeg_dec, jpeg_io, out_info);
     if (ret != JPEG_ERR_OK)
     {
-        ESP_LOGE(TAG, "Failed to parse JPEG header: %d", ret);
+        UFLAKE_LOGE(TAG, "Failed to parse JPEG header: %d", ret);
         goto cleanup;
     }
 
@@ -193,7 +194,7 @@ static bool decode_jpeg(const img_reader_t *r,
 
     if (!out_buf)
     {
-        ESP_LOGE(TAG, "Failed to allocate output buffer");
+        UFLAKE_LOGE(TAG, "Failed to allocate output buffer");
         ret = JPEG_ERR_NO_MEM;
         goto cleanup;
     }
@@ -204,7 +205,7 @@ static bool decode_jpeg(const img_reader_t *r,
     ret = jpeg_dec_process(jpeg_dec, jpeg_io);
     if (ret != JPEG_ERR_OK)
     {
-        ESP_LOGE(TAG, "JPEG decode failed: %d", ret);
+        UFLAKE_LOGE(TAG, "JPEG decode failed: %d", ret);
         goto cleanup;
     }
 
@@ -252,7 +253,7 @@ static bool decode_png(const img_reader_t *r,
     (void)r;
     (void)opts;
     (void)out;
-    ESP_LOGE(TAG, "PNG decode not implemented");
+    UFLAKE_LOGE(TAG, "PNG decode not implemented");
     return false;
 }
 
@@ -272,7 +273,7 @@ static bool resize_rgb565(img_rgb565_t *img, uint16_t new_w, uint16_t new_h)
 
     if (!dst)
     {
-        ESP_LOGE(TAG, "Failed to allocate resize buffer");
+        UFLAKE_LOGE(TAG, "Failed to allocate resize buffer");
         return false;
     }
 
@@ -325,7 +326,7 @@ static bool rotate_rgb565_sw(img_rgb565_t *img, img_rotate_t rot)
 
     if (!dst)
     {
-        ESP_LOGE(TAG, "Failed to allocate rotation buffer");
+        UFLAKE_LOGE(TAG, "Failed to allocate rotation buffer");
         return false;
     }
 
@@ -381,7 +382,7 @@ bool img_encode_jpeg_ex(const img_rgb565_t *img,
 {
     if (!img || !img->pixels || !path || !writer)
     {
-        ESP_LOGE(TAG, "Invalid encode parameters");
+        UFLAKE_LOGE(TAG, "Invalid encode parameters");
         return false;
     }
 
@@ -411,7 +412,7 @@ bool img_encode_jpeg_ex(const img_rgb565_t *img,
     ret = jpeg_enc_open(&config, &jpeg_enc);
     if (ret != JPEG_ERR_OK)
     {
-        ESP_LOGE(TAG, "JPEG encoder init failed: %d", ret);
+        UFLAKE_LOGE(TAG, "JPEG encoder init failed: %d", ret);
         return false;
     }
 
@@ -419,7 +420,7 @@ bool img_encode_jpeg_ex(const img_rgb565_t *img,
     outbuf = calloc(1, outbuf_size);
     if (!outbuf)
     {
-        ESP_LOGE(TAG, "Failed to allocate encode buffer");
+        UFLAKE_LOGE(TAG, "Failed to allocate encode buffer");
         jpeg_enc_close(jpeg_enc);
         return false;
     }
@@ -432,7 +433,7 @@ bool img_encode_jpeg_ex(const img_rgb565_t *img,
 
     if (ret != JPEG_ERR_OK)
     {
-        ESP_LOGE(TAG, "JPEG encode failed: %d", ret);
+        UFLAKE_LOGE(TAG, "JPEG encode failed: %d", ret);
         free(outbuf);
         return false;
     }
@@ -453,7 +454,7 @@ bool img_encode_jpeg_ex(const img_rgb565_t *img,
 
     if (!ok)
     {
-        ESP_LOGE(TAG, "Failed to write JPEG file");
+        UFLAKE_LOGE(TAG, "Failed to write JPEG file");
     }
 
     return ok;
@@ -478,14 +479,14 @@ bool img_screenshot_lvgl(img_rgb565_t *out)
     lv_obj_t *scr = lv_scr_act();
     if (!scr)
     {
-        ESP_LOGE(TAG, "No active LVGL screen");
+        UFLAKE_LOGE(TAG, "No active LVGL screen");
         return false;
     }
 
     lv_display_t *disp = lv_display_get_default();
     if (!disp)
     {
-        ESP_LOGE(TAG, "No default display");
+        UFLAKE_LOGE(TAG, "No default display");
         return false;
     }
 
@@ -500,7 +501,7 @@ bool img_screenshot_lvgl(img_rgb565_t *out)
 
     if (!buf)
     {
-        ESP_LOGE(TAG, "Failed to allocate screenshot buffer");
+        UFLAKE_LOGE(TAG, "Failed to allocate screenshot buffer");
         return false;
     }
 
@@ -513,7 +514,7 @@ bool img_screenshot_lvgl(img_rgb565_t *out)
     }
     else
     {
-        ESP_LOGW(TAG, "No active framebuffer");
+        UFLAKE_LOGW(TAG, "No active framebuffer");
         memset(buf, 0, size);
     }
 
@@ -548,7 +549,7 @@ bool img_screenshot_lvgl_to_jpeg(const char *path,
 bool img_screenshot_lvgl(img_rgb565_t *out)
 {
     (void)out;
-    ESP_LOGE(TAG, "LVGL not enabled");
+    UFLAKE_LOGE(TAG, "LVGL not enabled");
     return false;
 }
 
@@ -559,7 +560,7 @@ bool img_screenshot_lvgl_to_jpeg(const char *path,
     (void)path;
     (void)writer;
     (void)quality;
-    ESP_LOGE(TAG, "LVGL not enabled");
+    UFLAKE_LOGE(TAG, "LVGL not enabled");
     return false;
 }
 
@@ -577,7 +578,7 @@ bool img_decode_rgb565_ex(const char *path,
 {
     if (!path || !reader || !out)
     {
-        ESP_LOGE(TAG, "Invalid decode parameters");
+        UFLAKE_LOGE(TAG, "Invalid decode parameters");
         return false;
     }
 
@@ -585,7 +586,7 @@ bool img_decode_rgb565_ex(const char *path,
 
     if (!reader->open(reader->user_ctx, path))
     {
-        ESP_LOGE(TAG, "Failed to open file: %s", path);
+        UFLAKE_LOGE(TAG, "Failed to open file: %s", path);
         return false;
     }
 
@@ -603,7 +604,7 @@ bool img_decode_rgb565_ex(const char *path,
         ok = decode_png(reader, opts, out);
         break;
     default:
-        ESP_LOGE(TAG, "Unsupported format");
+        UFLAKE_LOGE(TAG, "Unsupported format");
         ok = false;
     }
 

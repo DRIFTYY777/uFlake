@@ -1,6 +1,5 @@
 #include "uGui.h"
 
-#include "esp_log.h"
 #include <stdio.h>
 
 #include "sdkconfig.h"
@@ -105,37 +104,37 @@ static void keypad_read_cb(lv_indev_t *indev, lv_indev_data_t *data)
     {
         data->state = LV_INDEV_STATE_PRESSED;
         data->key = InputKeyUp;
-        ESP_LOGI(TAG, "Keypad event: UP");
+        UFLAKE_LOGI(TAG, "Keypad event: UP");
     }
     else if (key == InputKeyDown)
     {
         data->state = LV_INDEV_STATE_PRESSED;
         data->key = InputKeyDown;
-        ESP_LOGI(TAG, "Keypad event: DOWN");
+        UFLAKE_LOGI(TAG, "Keypad event: DOWN");
     }
     else if (key == InputKeyRight)
     {
         data->state = LV_INDEV_STATE_PRESSED;
         data->key = InputKeyRight;
-        ESP_LOGI(TAG, "Keypad event: RIGHT");
+        UFLAKE_LOGI(TAG, "Keypad event: RIGHT");
     }
     else if (key == InputKeyLeft)
     {
         data->state = LV_INDEV_STATE_PRESSED;
         data->key = InputKeyLeft;
-        ESP_LOGI(TAG, "Keypad event: LEFT");
+        UFLAKE_LOGI(TAG, "Keypad event: LEFT");
     }
     else if (key == InputKeyOk)
     {
         data->state = LV_INDEV_STATE_PRESSED;
         data->key = InputKeyOk;
-        ESP_LOGI(TAG, "Keypad event: OK");
+        UFLAKE_LOGI(TAG, "Keypad event: OK");
     }
     else if (key == InputKeyBack)
     {
         data->state = LV_INDEV_STATE_PRESSED;
         data->key = InputKeyBack;
-        ESP_LOGI(TAG, "Keypad event: BACK");
+        UFLAKE_LOGI(TAG, "Keypad event: BACK");
     }
     else
     {
@@ -152,22 +151,22 @@ void keypad_init(void)
     {
         lv_indev_set_type(keypad_indev, LV_INDEV_TYPE_KEYPAD);
         lv_indev_set_read_cb(keypad_indev, keypad_read_cb);
-        ESP_LOGI(TAG, "Keypad input device created");
+        UFLAKE_LOGI(TAG, "Keypad input device created");
     }
     else
     {
-        ESP_LOGE(TAG, "Failed to create keypad input device");
+        UFLAKE_LOGE(TAG, "Failed to create keypad input device");
     }
 }
 
 void uGui_init(st7789_driver_t *drv)
 {
-    ESP_LOGI(TAG, "uGUI initialized");
+    UFLAKE_LOGI(TAG, "uGUI initialized");
 
     driver = drv;
     // Initialize LVGL
     lv_init();
-    ESP_LOGI(TAG, "LVGL initialized");
+    UFLAKE_LOGI(TAG, "LVGL initialized");
 
     // Allocate LVGL draw buffers using kernel memory manager
     // Buffer size must fit within DMA max transfer size (32KB)
@@ -176,7 +175,7 @@ void uGui_init(st7789_driver_t *drv)
     size_t buf_size = driver->display_width * LVGL_BUF_LINES;
     size_t buf_bytes = buf_size * sizeof(lv_color_t);
 
-    ESP_LOGI(TAG, "Allocating LVGL buffers: %zu pixels (%zu bytes each)", buf_size, buf_bytes);
+    UFLAKE_LOGI(TAG, "Allocating LVGL buffers: %zu pixels (%zu bytes each)", buf_size, buf_bytes);
 
     // Allocate DMA-capable buffers (required for SPI DMA transfers)
     lv_buf1 = (lv_color_t *)uflake_malloc(buf_bytes, UFLAKE_MEM_DMA);
@@ -185,7 +184,7 @@ void uGui_init(st7789_driver_t *drv)
     if (!lv_buf1 || !lv_buf2)
     {
         // DMA allocation failed, try smaller buffers
-        ESP_LOGW(TAG, "DMA allocation failed, trying smaller buffers");
+        UFLAKE_LOGW(TAG, "DMA allocation failed, trying smaller buffers");
         if (lv_buf1)
             uflake_free(lv_buf1);
         if (lv_buf2)
@@ -202,7 +201,7 @@ void uGui_init(st7789_driver_t *drv)
 
     if (!lv_buf1 || !lv_buf2)
     {
-        ESP_LOGE(TAG, "Failed to allocate LVGL buffers");
+        UFLAKE_LOGE(TAG, "Failed to allocate LVGL buffers");
         if (lv_buf1)
             uflake_free(lv_buf1);
         if (lv_buf2)
@@ -210,13 +209,13 @@ void uGui_init(st7789_driver_t *drv)
         return;
     }
 
-    ESP_LOGI(TAG, "LVGL buffers allocated: %zu bytes each", buf_bytes);
+    UFLAKE_LOGI(TAG, "LVGL buffers allocated: %zu bytes each", buf_bytes);
 
     // Create LVGL display
     lv_disp = lv_display_create(driver->display_width, driver->display_height);
     if (!lv_disp)
     {
-        ESP_LOGE(TAG, "Failed to create LVGL display");
+        UFLAKE_LOGE(TAG, "Failed to create LVGL display");
         uflake_free(lv_buf1);
         uflake_free(lv_buf2);
         return;
@@ -231,32 +230,32 @@ void uGui_init(st7789_driver_t *drv)
     // Use native RGB565 format - ST7789 is configured for little-endian via RAMCTRL (0x00, 0xC8)
     lv_display_set_color_format(lv_disp, LV_COLOR_FORMAT_RGB565);
 
-    ESP_LOGI(TAG, "LVGL display configured with double buffering");
+    UFLAKE_LOGI(TAG, "LVGL display configured with double buffering");
 
     // Create mutex using kernel for LVGL thread safety
     if (uflake_mutex_create(&gui_mutex) != UFLAKE_OK)
     {
-        ESP_LOGE(TAG, "Failed to create GUI mutex");
+        UFLAKE_LOGE(TAG, "Failed to create GUI mutex");
         return;
     }
 
-    ESP_LOGI(TAG, "GUI mutex created successfully");
+    UFLAKE_LOGI(TAG, "GUI mutex created successfully");
 
     // Create kernel timer for LVGL ticks
     if (uflake_timer_create(&lvgl_tick_timer_id, LV_TICK_PERIOD_MS,
                             lv_tick_timer_cb, NULL, true) != UFLAKE_OK)
     {
-        ESP_LOGE(TAG, "Failed to create LVGL tick timer");
+        UFLAKE_LOGE(TAG, "Failed to create LVGL tick timer");
         return;
     }
 
     if (uflake_timer_start(lvgl_tick_timer_id) != UFLAKE_OK)
     {
-        ESP_LOGE(TAG, "Failed to start LVGL tick timer");
+        UFLAKE_LOGE(TAG, "Failed to start LVGL tick timer");
         return;
     }
 
-    ESP_LOGI(TAG, "LVGL tick timer started");
+    UFLAKE_LOGI(TAG, "LVGL tick timer started");
 
     keypad_init();
 
@@ -269,11 +268,11 @@ void uGui_init(st7789_driver_t *drv)
                               PROCESS_PRIORITY_HIGH,
                               &gui_pid) != UFLAKE_OK)
     {
-        ESP_LOGE(TAG, "Failed to create GUI process");
+        UFLAKE_LOGE(TAG, "Failed to create GUI process");
         return;
     }
 
-    ESP_LOGI(TAG, "GUI process created (PID: %lu)", gui_pid);
+    UFLAKE_LOGI(TAG, "GUI process created (PID: %lu)", gui_pid);
 }
 
 // GUI task - handles LVGL with semaphore protection
@@ -284,7 +283,7 @@ static void gui_task(void *arg)
     // Small delay to ensure initialization is complete
     vTaskDelay(pdMS_TO_TICKS(100));
 
-    ESP_LOGI(TAG, "GUI task entering main loop");
+    UFLAKE_LOGI(TAG, "GUI task entering main loop");
 
     while (1)
     {

@@ -1,5 +1,4 @@
 #include "uNVS.h"
-#include "esp_log.h"
 
 static const char *TAG = "UNVS";
 static bool unvs_initialized = false;
@@ -14,19 +13,19 @@ uflake_result_t unvs_init(void)
     esp_err_t err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND)
     {
-        ESP_LOGW(TAG, "NVS partition truncated, erasing...");
+        UFLAKE_LOGW(TAG, "NVS partition truncated, erasing...");
         ESP_ERROR_CHECK(nvs_flash_erase());
         err = nvs_flash_init();
     }
 
     if (err != ESP_OK)
     {
-        ESP_LOGE(TAG, "NVS init failed: %s", esp_err_to_name(err));
+        UFLAKE_LOGE(TAG, "NVS init failed: %s", esp_err_to_name(err));
         return UFLAKE_ERROR;
     }
 
     unvs_initialized = true;
-    ESP_LOGI(TAG, "NVS subsystem initialized");
+    UFLAKE_LOGI(TAG, "NVS subsystem initialized");
     return UFLAKE_OK;
 }
 

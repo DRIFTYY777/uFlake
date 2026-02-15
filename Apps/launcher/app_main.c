@@ -1,9 +1,7 @@
 #include <stdio.h>
 #include <string.h>
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "esp_log.h"
-#include "../../uAppLoader/appLoader.h"
+
+#include "appLoader.h"
 
 static const char *TAG = "Launcher";
 
@@ -39,7 +37,7 @@ const app_bundle_t launcher_app = {
 // Launcher is a special app that displays all available apps
 void launcher_app_main(void)
 {
-    ESP_LOGI(TAG, "Launcher Started");
+    UFLAKE_LOGI(TAG, "Launcher Started");
 
     app_descriptor_t *apps = NULL;
     uint32_t app_count = 0;
@@ -51,7 +49,7 @@ void launcher_app_main(void)
         // Get list of all apps from app loader
         if (app_loader_get_apps(&apps, &app_count) == UFLAKE_OK)
         {
-            ESP_LOGI(TAG, "Found %lu apps", app_count);
+            UFLAKE_LOGI(TAG, "Found %lu apps", app_count);
 
             // Display app list (simplified - you'd use GUI here)
             printf("\n========== uFlake Apps ==========\n");
@@ -78,7 +76,7 @@ void launcher_app_main(void)
         // if (button_ok_pressed) {
         //     // Launch selected app
         //     uint32_t app_id = apps[selected_index].app_id;
-        //     ESP_LOGI(TAG, "Launching app ID %lu", app_id);
+        //     UFLAKE_LOGI(TAG, "Launching app ID %lu", app_id);
         //     app_loader_launch(app_id);
         //
         //     // Launcher is now paused by app loader

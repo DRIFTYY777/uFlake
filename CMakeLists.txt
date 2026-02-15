@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.16)
 
 # Automatically discover all apps in the Apps directory
 file(GLOB APP_DIRS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "Apps/*")
-list(FILTER APP_DIRS EXCLUDE REGEX ".*\\.(c|h|md|txt)$")
+list(FILTER APP_DIRS EXCLUDE REGEX ".*\\.(c|cpp|h|md|txt)$")
 
 
 

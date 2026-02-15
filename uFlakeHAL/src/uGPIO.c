@@ -1,7 +1,6 @@
 #include "uGPIO.h"
 #include "driver/gpio.h"
 #include "driver/ledc.h"
-#include "esp_log.h"
 #include <string.h>
 
 static const char *TAG = "uGPIO";
@@ -144,7 +143,7 @@ esp_err_t ugpio_init(gpio_num_t pin, gpio_mode_t mode, gpio_pull_mode_t pull_mod
 {
     if (!ugpio_is_valid(pin))
     {
-        ESP_LOGE(TAG, "Invalid GPIO pin: %d", pin);
+        UFLAKE_LOGE(TAG, "Invalid GPIO pin: %d", pin);
         return ESP_ERR_INVALID_ARG;
     }
 
@@ -158,11 +157,11 @@ esp_err_t ugpio_init(gpio_num_t pin, gpio_mode_t mode, gpio_pull_mode_t pull_mod
     esp_err_t ret = gpio_config(&io_conf);
     if (ret != ESP_OK)
     {
-        ESP_LOGE(TAG, "Failed to configure GPIO %d: %s", pin, esp_err_to_name(ret));
+        UFLAKE_LOGE(TAG, "Failed to configure GPIO %d: %s", pin, esp_err_to_name(ret));
         return ret;
     }
 
-    ESP_LOGD(TAG, "GPIO %d initialized (mode=%d, pull=%d)", pin, mode, pull_mode);
+    UFLAKE_LOGD(TAG, "GPIO %d initialized (mode=%d, pull=%d)", pin, mode, pull_mode);
     return ESP_OK;
 }
 
@@ -322,7 +321,7 @@ esp_err_t ugpio_attach_interrupt(gpio_num_t pin, ugpio_intr_type_t intr_type,
     esp_err_t ret = ensure_isr_service_installed();
     if (ret != ESP_OK)
     {
-        ESP_LOGE(TAG, "Failed to install ISR service: %s", esp_err_to_name(ret));
+        UFLAKE_LOGE(TAG, "Failed to install ISR service: %s", esp_err_to_name(ret));
         return ret;
     }
 
@@ -337,7 +336,7 @@ esp_err_t ugpio_attach_interrupt(gpio_num_t pin, ugpio_intr_type_t intr_type,
     ret = gpio_set_intr_type(pin, esp_intr_type);
     if (ret != ESP_OK)
     {
-        ESP_LOGE(TAG, "Failed to set interrupt type for GPIO %d: %s", pin, esp_err_to_name(ret));
+        UFLAKE_LOGE(TAG, "Failed to set interrupt type for GPIO %d: %s", pin, esp_err_to_name(ret));
         return ret;
     }
 
@@ -351,11 +350,11 @@ esp_err_t ugpio_attach_interrupt(gpio_num_t pin, ugpio_intr_type_t intr_type,
     if (ret != ESP_OK)
     {
         gpio_isr_contexts[pin].active = false;
-        ESP_LOGE(TAG, "Failed to add ISR handler for GPIO %d: %s", pin, esp_err_to_name(ret));
+        UFLAKE_LOGE(TAG, "Failed to add ISR handler for GPIO %d: %s", pin, esp_err_to_name(ret));
         return ret;
     }
 
-    ESP_LOGD(TAG, "Interrupt attached to GPIO %d (type=%d)", pin, intr_type);
+    UFLAKE_LOGD(TAG, "Interrupt attached to GPIO %d (type=%d)", pin, intr_type);
     return ESP_OK;
 }
 
@@ -374,7 +373,7 @@ esp_err_t ugpio_detach_interrupt(gpio_num_t pin)
     esp_err_t ret = gpio_isr_handler_remove(pin);
     if (ret != ESP_OK)
     {
-        ESP_LOGE(TAG, "Failed to remove ISR handler for GPIO %d: %s", pin, esp_err_to_name(ret));
+        UFLAKE_LOGE(TAG, "Failed to remove ISR handler for GPIO %d: %s", pin, esp_err_to_name(ret));
         return ret;
     }
 
@@ -386,7 +385,7 @@ esp_err_t ugpio_detach_interrupt(gpio_num_t pin)
     // Disable interrupt
     gpio_set_intr_type(pin, GPIO_INTR_DISABLE);
 
-    ESP_LOGD(TAG, "Interrupt detached from GPIO %d", pin);
+    UFLAKE_LOGD(TAG, "Interrupt detached from GPIO %d", pin);
     return ESP_OK;
 }
 
@@ -421,7 +420,7 @@ esp_err_t ugpio_pwm_start(gpio_num_t pin, uint32_t frequency, float duty_cycle)
 
     if (duty_cycle < 0.0f || duty_cycle > 100.0f)
     {
-        ESP_LOGE(TAG, "Invalid duty cycle: %.2f (must be 0-100)", duty_cycle);
+        UFLAKE_LOGE(TAG, "Invalid duty cycle: %.2f (must be 0-100)", duty_cycle);
         return ESP_ERR_INVALID_ARG;
     }
 
@@ -429,7 +428,7 @@ esp_err_t ugpio_pwm_start(gpio_num_t pin, uint32_t frequency, float duty_cycle)
     int existing_idx = find_pwm_channel_by_pin(pin);
     if (existing_idx >= 0)
     {
-        ESP_LOGW(TAG, "PWM already active on GPIO %d, reconfiguring", pin);
+        UFLAKE_LOGW(TAG, "PWM already active on GPIO %d, reconfiguring", pin);
         ugpio_pwm_stop(pin);
     }
 
@@ -437,7 +436,7 @@ esp_err_t ugpio_pwm_start(gpio_num_t pin, uint32_t frequency, float duty_cycle)
     ledc_channel_t channel = find_free_pwm_channel();
     if (channel < 0)
     {
-        ESP_LOGE(TAG, "No free PWM channels available");
+        UFLAKE_LOGE(TAG, "No free PWM channels available");
         return ESP_ERR_NO_MEM;
     }
 
@@ -454,7 +453,7 @@ esp_err_t ugpio_pwm_start(gpio_num_t pin, uint32_t frequency, float duty_cycle)
         esp_err_t ret = ledc_timer_config(&ledc_timer);
         if (ret != ESP_OK)
         {
-            ESP_LOGE(TAG, "Failed to configure LEDC timer: %s", esp_err_to_name(ret));
+            UFLAKE_LOGE(TAG, "Failed to configure LEDC timer: %s", esp_err_to_name(ret));
             return ret;
         }
         ledc_timer_configured = true;
@@ -478,7 +477,7 @@ esp_err_t ugpio_pwm_start(gpio_num_t pin, uint32_t frequency, float duty_cycle)
     esp_err_t ret = ledc_channel_config(&ledc_channel);
     if (ret != ESP_OK)
     {
-        ESP_LOGE(TAG, "Failed to configure LEDC channel: %s", esp_err_to_name(ret));
+        UFLAKE_LOGE(TAG, "Failed to configure LEDC channel: %s", esp_err_to_name(ret));
         return ret;
     }
 
@@ -488,7 +487,7 @@ esp_err_t ugpio_pwm_start(gpio_num_t pin, uint32_t frequency, float duty_cycle)
     pwm_channels[channel].frequency = frequency;
     pwm_channels[channel].in_use = true;
 
-    ESP_LOGD(TAG, "PWM started on GPIO %d (freq=%lu Hz, duty=%.2f%%)", pin, frequency, duty_cycle);
+    UFLAKE_LOGD(TAG, "PWM started on GPIO %d (freq=%lu Hz, duty=%.2f%%)", pin, frequency, duty_cycle);
     return ESP_OK;
 }
 
@@ -501,14 +500,14 @@ esp_err_t ugpio_pwm_set_duty(gpio_num_t pin, float duty_cycle)
 
     if (duty_cycle < 0.0f || duty_cycle > 100.0f)
     {
-        ESP_LOGE(TAG, "Invalid duty cycle: %.2f (must be 0-100)", duty_cycle);
+        UFLAKE_LOGE(TAG, "Invalid duty cycle: %.2f (must be 0-100)", duty_cycle);
         return ESP_ERR_INVALID_ARG;
     }
 
     int idx = find_pwm_channel_by_pin(pin);
     if (idx < 0)
     {
-        ESP_LOGE(TAG, "PWM not started on GPIO %d", pin);
+        UFLAKE_LOGE(TAG, "PWM not started on GPIO %d", pin);
         return ESP_ERR_INVALID_STATE;
     }
 
@@ -532,7 +531,7 @@ esp_err_t ugpio_pwm_set_frequency(gpio_num_t pin, uint32_t frequency)
     int idx = find_pwm_channel_by_pin(pin);
     if (idx < 0)
     {
-        ESP_LOGE(TAG, "PWM not started on GPIO %d", pin);
+        UFLAKE_LOGE(TAG, "PWM not started on GPIO %d", pin);
         return ESP_ERR_INVALID_STATE;
     }
 
@@ -562,7 +561,7 @@ esp_err_t ugpio_pwm_stop(gpio_num_t pin)
     esp_err_t ret = ledc_stop(LEDC_MODE, pwm_channels[idx].channel, 0);
     if (ret != ESP_OK)
     {
-        ESP_LOGE(TAG, "Failed to stop PWM on GPIO %d: %s", pin, esp_err_to_name(ret));
+        UFLAKE_LOGE(TAG, "Failed to stop PWM on GPIO %d: %s", pin, esp_err_to_name(ret));
         return ret;
     }
 
@@ -573,7 +572,7 @@ esp_err_t ugpio_pwm_stop(gpio_num_t pin)
     // Reset pin to normal GPIO
     gpio_reset_pin(pin);
 
-    ESP_LOGD(TAG, "PWM stopped on GPIO %d", pin);
+    UFLAKE_LOGD(TAG, "PWM stopped on GPIO %d", pin);
     return ESP_OK;
 }
 

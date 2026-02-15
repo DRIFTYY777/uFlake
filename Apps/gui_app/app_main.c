@@ -1,8 +1,5 @@
 #include <stdio.h>
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 #include "appLoader.h"
-
 #include "lvgl.h"
 
 void gui_test_main(void);
