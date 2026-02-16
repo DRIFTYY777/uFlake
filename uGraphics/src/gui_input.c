@@ -1,6 +1,6 @@
-#include "inputs.h"
+#include "gui_input.h"
 #include "logger.h"
-#include "../Apps/input_service/input.h"
+#include "input.h"
 
 static lv_indev_t *keypad_indev;
 

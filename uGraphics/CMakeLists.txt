@@ -6,8 +6,14 @@ list(FILTER APP_DIRS EXCLUDE REGEX ".*\\.(c|h|md|txt)$")
 
 idf_component_register(
     SRCS 
-        "uGUI.c"
-        "src/inputs.c"
+        "uGui.c"
+        "src/gui_input.c"
+        "src/uGui_focus.c"
+        "src/uGui_notification.c"
+        "src/uGui_appwindow.c"
+        "src/uGui_theme.c"
+        "src/uGui_widgets.c"
+        "src/uGui_navigation.c"
 
     INCLUDE_DIRS 
         "."
@@ -23,6 +29,7 @@ idf_component_register(
         lvgl__lvgl
         uLibraries
         uFlakeHAL
+        uServices
         ${APP_DIRS}
 
 )

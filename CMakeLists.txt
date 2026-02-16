@@ -18,6 +18,7 @@ set(EXTRA_COMPONENT_DIRS
     "uAppLoader"
     "uGraphics"
     "uBootScreen"
+    "uServices"
     ${APP_DIRS}
 )
 

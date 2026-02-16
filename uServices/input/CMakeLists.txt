@@ -4,5 +4,5 @@ idf_component_register(
 
 
     INCLUDE_DIRS "."
-    REQUIRES uAppLoader uFlakeKernel uLibraries
+    REQUIRES uAppLoader uFlakeKernel uLibraries 
 )

@@ -1,6 +1,6 @@
 #include "uGui.h"
 
-#include "inputs.h"
+#include "gui_input.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -15,6 +15,9 @@
 #include "sdCard.h"
 
 static const char *TAG = "uGUI";
+
+// Global initialization state
+static bool g_ugui_initialized = false;
 
 // LVGL display and buffers
 static lv_display_t *lv_disp = NULL;
@@ -95,11 +98,18 @@ static void lvgl_flush_cb(lv_display_t *disp, const lv_area_t *area, uint8_t *px
 
 void uGui_init(st7789_driver_t *drv)
 {
-    UFLAKE_LOGI(TAG, "uGUI initialized");
+    if (g_ugui_initialized)
+    {
+        UFLAKE_LOGW(TAG, "uGUI already initialized");
+        return;
+    }
+
+    UFLAKE_LOGI(TAG, "=== Initializing uGUI System ===");
 
     driver = drv;
     // Initialize LVGL
     lv_init();
+
     UFLAKE_LOGI(TAG, "LVGL initialized");
 
     // Allocate LVGL draw buffers using kernel memory manager
@@ -145,8 +155,8 @@ void uGui_init(st7789_driver_t *drv)
 
     UFLAKE_LOGI(TAG, "LVGL buffers allocated: %zu bytes each", buf_bytes);
 
-    // Create LVGL display
-    lv_disp = lv_display_create(driver->display_width, driver->display_height);
+    // Create LVGL display with swapped dimensions for landscape mode (240x320 physical → 320x240 logical)
+    lv_disp = lv_display_create(driver->display_height, driver->display_width);
     if (!lv_disp)
     {
         UFLAKE_LOGE(TAG, "Failed to create LVGL display");
@@ -164,7 +174,7 @@ void uGui_init(st7789_driver_t *drv)
     // Use native RGB565 format - ST7789 is configured for little-endian via RAMCTRL (0x00, 0xC8)
     lv_display_set_color_format(lv_disp, LV_COLOR_FORMAT_RGB565);
 
-    UFLAKE_LOGI(TAG, "LVGL display configured with double buffering");
+    UFLAKE_LOGI(TAG, "LVGL display configured as 320x240 landscape with double buffering");
 
     // Create mutex using kernel for LVGL thread safety
     if (uflake_mutex_create(&gui_mutex) != UFLAKE_OK)
@@ -191,7 +201,7 @@ void uGui_init(st7789_driver_t *drv)
 
     UFLAKE_LOGI(TAG, "LVGL tick timer started");
 
-    keypad_init();
+    // keypad_init();
 
     // Create GUI task using kernel process manager
     uint32_t gui_pid;
@@ -202,11 +212,98 @@ void uGui_init(st7789_driver_t *drv)
                               PROCESS_PRIORITY_HIGH,
                               &gui_pid) != UFLAKE_OK)
     {
-        UFLAKE_LOGE(TAG, "Failed to create GUI process");
+        UFLAKE_LOGE(TAG, "Failed to create GUI task");
         return;
     }
 
-    UFLAKE_LOGI(TAG, "GUI process created (PID: %lu)", gui_pid);
+    UFLAKE_LOGI(TAG, "GUI task created (PID: %lu)", gui_pid);
+
+    // ========================================================================
+    // Initialize uGUI subsystems (NEW ARCHITECTURE)
+    // ========================================================================
+
+    UFLAKE_LOGI(TAG, "Initializing uGUI subsystems...");
+
+    // 1. Focus Manager - CRITICAL for crash-free operation
+    if (ugui_focus_init() != UFLAKE_OK)
+    {
+        UFLAKE_LOGE(TAG, "Failed to initialize focus manager");
+        return;
+    }
+    UFLAKE_LOGI(TAG, "✓ Focus manager initialized");
+
+    // 2. Theme Manager - Background and colors
+    if (ugui_theme_init() != UFLAKE_OK)
+    {
+        UFLAKE_LOGE(TAG, "Failed to initialize theme manager");
+        return;
+    }
+    UFLAKE_LOGI(TAG, "✓ Theme manager initialized");
+
+    // 3. Notification Bar - System status display
+    if (ugui_notification_init() != UFLAKE_OK)
+    {
+        UFLAKE_LOGE(TAG, "Failed to initialize notification bar");
+        return;
+    }
+    UFLAKE_LOGI(TAG, "✓ Notification bar initialized");
+
+    // 4. App Window Manager - Safe app containers
+    if (ugui_appwindow_init() != UFLAKE_OK)
+    {
+        UFLAKE_LOGE(TAG, "Failed to initialize app window manager");
+        return;
+    }
+    UFLAKE_LOGI(TAG, "✓ App window manager initialized");
+
+    // 5. Navigation System - Keyboard input routing
+    if (ugui_navigation_init() != UFLAKE_OK)
+    {
+        UFLAKE_LOGE(TAG, "Failed to initialize navigation system");
+        return;
+    }
+    UFLAKE_LOGI(TAG, "✓ Navigation system initialized");
+
+    // Apply default theme (Flipper-like blue theme)
+    ugui_theme_apply_blue();
+    UFLAKE_LOGI(TAG, "✓ Default theme applied");
+
+    // Try to load background image from SD card (car.jpeg)
+    if (ugui_theme_set_bg_image_sdcard("/sd/car.jpeg") != UFLAKE_OK)
+    {
+        UFLAKE_LOGI(TAG, "Using fallback color background");
+        // Fallback already handled in theme function
+    }
+
+    // Set initial system status
+    ugui_system_status_t status = {
+        .battery_percent = 100,
+        .charging = false,
+        .wifi_connected = false,
+        .bt_connected = false,
+        .sdcard_mounted = true, // Assume mounted for now
+        .hour = 12,
+        .minute = 0};
+    ugui_notification_update_status(&status);
+
+    g_ugui_initialized = true;
+
+    UFLAKE_LOGI(TAG, "=== uGUI System Ready ===");
+    UFLAKE_LOGI(TAG, "Apps can now use ugui_appwindow_create() for safe UI creation");
+}
+
+// ============================================================================
+// PUBLIC API
+// ============================================================================
+
+uflake_mutex_t *uGui_get_mutex(void)
+{
+    return gui_mutex;
+}
+
+bool uGui_is_initialized(void)
+{
+    return g_ugui_initialized;
 }
 
 // GUI task - handles LVGL with semaphore protection

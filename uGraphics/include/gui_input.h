@@ -17,7 +17,7 @@ extern "C"
      * @brief LVGL input device read callback for the keypad
      * This function is called by LVGL to read the current state of the keypad.
      */
-    static void keypad_read_cb(lv_indev_t *indev, lv_indev_data_t *data);
+    void keypad_read_cb(lv_indev_t *indev, lv_indev_data_t *data);
 
 #ifdef __cplusplus
 }

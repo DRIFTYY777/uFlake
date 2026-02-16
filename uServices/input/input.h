@@ -12,7 +12,7 @@ extern "C"
 {
 #endif
 
-#define INPUT_DEBOUNCE_MS 0      // 50ms debounce
+#define INPUT_DEBOUNCE_MS 50     // 50ms debounce
 #define INPUT_LONG_PRESS_MS 1000 // 1 second for long press
 
     typedef enum

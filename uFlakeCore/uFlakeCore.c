@@ -52,7 +52,7 @@ void config_and_init_display()
 
     display.display_width = 240;
     display.display_height = 320;
-    display.orientation = 0;
+    display.orientation = 1; // Landscape mode (90° rotation)
     display.spi_host = USPI_HOST_SPI3;
     display.spi_speed = USPI_FREQ_80MHZ;
     display.buffer_size = 240 * 20; // 20 lines buffer
@@ -103,6 +103,8 @@ void config_and_init_nrf24()
     }
 }
 
+#include "input.h"
+
 void uflake_core_init(void)
 {
     // Initialize the kernel
@@ -135,6 +137,79 @@ void uflake_core_init(void)
     uGui_init(&display);
 
     register_builtin_apps();
+
+    while (true)
+    {
+        InputKey key;
+        InputType type = input_get_key_event(&key);
+
+        if (key == InputKeyUp)
+        {
+            if (type == InputTypePress)
+            {
+                UFLAKE_LOGI(TAG, "Up key pressed");
+            }
+            else if (type == InputTypeLong)
+            {
+                UFLAKE_LOGI(TAG, "Up key long pressed");
+            }
+        }
+        else if (key == InputKeyDown)
+        {
+            if (type == InputTypePress)
+            {
+                UFLAKE_LOGI(TAG, "Down key pressed");
+            }
+            else if (type == InputTypeLong)
+            {
+                UFLAKE_LOGI(TAG, "Down key long pressed");
+            }
+        }
+        else if (key == InputKeyLeft)
+        {
+            if (type == InputTypePress)
+            {
+                UFLAKE_LOGI(TAG, "Left key pressed");
+            }
+            else if (type == InputTypeLong)
+            {
+                UFLAKE_LOGI(TAG, "Left key long pressed");
+            }
+        }
+        else if (key == InputKeyRight)
+        {
+            if (type == InputTypePress)
+            {
+                UFLAKE_LOGI(TAG, "Right key pressed");
+            }
+            else if (type == InputTypeLong)
+            {
+                UFLAKE_LOGI(TAG, "Right key long pressed");
+            }
+        }
+        else if (key == InputKeyOk)
+        {
+            if (type == InputTypePress)
+            {
+                UFLAKE_LOGI(TAG, "OK key pressed");
+            }
+            else if (type == InputTypeLong)
+            {
+                UFLAKE_LOGI(TAG, "OK key long pressed");
+            }
+        }
+        else if (key == InputKeyBack)
+        {
+            if (type == InputTypePress)
+            {
+                UFLAKE_LOGI(TAG, "Back key pressed");
+            }
+            else if (type == InputTypeLong)
+            {
+                UFLAKE_LOGI(TAG, "Back key long pressed");
+            }
+        }
+    }
 
     UFLAKE_LOGI(TAG, "uFlake Core initialized successfully");
 }

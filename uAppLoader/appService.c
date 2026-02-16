@@ -231,10 +231,10 @@ uint32_t service_register(const service_bundle_t *service_bundle)
     service_count++;
 
     UFLAKE_LOGI(TAG, "Registered service: %s v%s (ID: %lu, Type: %d)",
-             service->manifest.name,
-             service->manifest.version,
-             service->service_id,
-             service->manifest.type);
+                service->manifest.name,
+                service->manifest.version,
+                service->service_id,
+                service->manifest.type);
 
     uflake_mutex_unlock(service_mutex);
     return service->service_id;
@@ -345,51 +345,59 @@ uflake_result_t service_start(uint32_t service_id)
         }
     }
 
-    // Create task for service if it needs one
-    uint32_t stack_size = service->manifest.stack_size > 0 ? service->manifest.stack_size : 3072;
+    // Only create a task if stack_size > 0
+    if (service->manifest.stack_size > 0) {
+        uint32_t stack_size = service->manifest.stack_size;
+        // Map service priority to kernel priority
+        process_priority_t kernel_priority = PROCESS_PRIORITY_NORMAL;
+        if (service->manifest.priority >= 8)
+            kernel_priority = PROCESS_PRIORITY_HIGH;
+        else if (service->manifest.priority >= 5)
+            kernel_priority = PROCESS_PRIORITY_NORMAL;
+        else
+            kernel_priority = PROCESS_PRIORITY_LOW;
 
-    // Map service priority to kernel priority
-    process_priority_t kernel_priority = PROCESS_PRIORITY_NORMAL;
-    if (service->manifest.priority >= 8)
-        kernel_priority = PROCESS_PRIORITY_HIGH;
-    else if (service->manifest.priority >= 5)
-        kernel_priority = PROCESS_PRIORITY_NORMAL;
-    else
-        kernel_priority = PROCESS_PRIORITY_LOW;
+        char task_name[32];
+        snprintf(task_name, sizeof(task_name), "srv_%.27s", service->manifest.name);
 
-    char task_name[32];
-    snprintf(task_name, sizeof(task_name), "srv_%.27s", service->manifest.name);
+        uint32_t pid;
+        uflake_result_t result = uflake_process_create(
+            task_name,
+            service_task_wrapper,
+            (void *)(uintptr_t)service_id,
+            stack_size,
+            kernel_priority,
+            &pid);
 
-    uint32_t pid;
-    uflake_result_t result = uflake_process_create(
-        task_name,
-        service_task_wrapper,
-        (void *)(uintptr_t)service_id,
-        stack_size,
-        kernel_priority,
-        &pid);
+        if (result != UFLAKE_OK)
+        {
+            UFLAKE_LOGE(TAG, "Failed to create task for service %s", service->manifest.name);
+            uflake_mutex_lock(service_mutex, UINT32_MAX);
+            service->state = SERVICE_STATE_ERROR;
+            service->crash_count++;
+            uflake_mutex_unlock(service_mutex);
+            return result;
+        }
 
-    if (result != UFLAKE_OK)
-    {
-        UFLAKE_LOGE(TAG, "Failed to create task for service %s", service->manifest.name);
         uflake_mutex_lock(service_mutex, UINT32_MAX);
-        service->state = SERVICE_STATE_ERROR;
-        service->crash_count++;
+        service->task_handle = xTaskGetHandle(task_name);
+        service->state = SERVICE_STATE_RUNNING;
+        service->start_count++;
+        service->last_start_time = (uint32_t)(esp_timer_get_time() / 1000000);
         uflake_mutex_unlock(service_mutex);
-        return result;
+        UFLAKE_LOGI(TAG, "Service %s started successfully", service->manifest.name);
+        return UFLAKE_OK;
+    } else {
+        // No task needed, just mark as running
+        uflake_mutex_lock(service_mutex, UINT32_MAX);
+        service->task_handle = NULL;
+        service->state = SERVICE_STATE_RUNNING;
+        service->start_count++;
+        service->last_start_time = (uint32_t)(esp_timer_get_time() / 1000000);
+        uflake_mutex_unlock(service_mutex);
+        UFLAKE_LOGI(TAG, "Service %s started (no task)", service->manifest.name);
+        return UFLAKE_OK;
     }
-
-    uflake_mutex_lock(service_mutex, UINT32_MAX);
-
-    service->task_handle = xTaskGetHandle(task_name);
-    service->state = SERVICE_STATE_RUNNING;
-    service->start_count++;
-    service->last_start_time = (uint32_t)(esp_timer_get_time() / 1000000);
-
-    uflake_mutex_unlock(service_mutex);
-
-    UFLAKE_LOGI(TAG, "Service %s started successfully", service->manifest.name);
-    return UFLAKE_OK;
 }
 
 uflake_result_t service_stop(uint32_t service_id)

@@ -41,6 +41,7 @@ idf_component_register(
         uAppLoader
         uLibraries
         uGraphics
+        uServices
         uBootScreen
         lvgl__lvgl
 

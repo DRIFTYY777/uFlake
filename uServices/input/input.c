@@ -7,6 +7,27 @@
 static const char *TAG = "INPUT";
 static InputService g_input = {0};
 
+// Register as a service (no task assigned)
+// Non-static so it can be externally registered (like apps)
+
+service_manifest_t input_manifest = {
+    .name = "input_service",
+    .version = "1.0",
+    .type = SERVICE_TYPE_INPUT,
+    .stack_size = 0, // No task
+    .priority = 0,   // No task
+    .auto_start = false,
+    .critical = false,
+    .dependencies = {0}};
+
+const service_bundle_t input_bundle = {
+    .manifest = &input_manifest,
+    .init = input_init,
+    .start = NULL, // No task
+    .stop = NULL,  // No task
+    .deinit = input_deinit,
+    .context = NULL};
+
 // Simple function to get current time in milliseconds
 static uint32_t get_time_ms(void)
 {
@@ -46,26 +67,6 @@ uflake_result_t input_init(void)
         UFLAKE_LOGW(TAG, "Input already initialized");
         return UFLAKE_OK;
     }
-
-    // Register as a service (no task assigned)
-    static service_manifest_t input_manifest = {
-        .name = "input_service",
-        .version = "1.0",
-        .type = SERVICE_TYPE_INPUT,
-        .stack_size = 0, // No task
-        .priority = 0,   // No task
-        .auto_start = false,
-        .critical = false,
-        .dependencies = {0}};
-
-    static service_bundle_t input_bundle = {
-        .manifest = &input_manifest,
-        .init = NULL,   // Already handled by input_init
-        .start = NULL,  // No task
-        .stop = NULL,   // No task
-        .deinit = NULL, // Optional: could point to input_deinit
-        .context = NULL};
-    service_register(&input_bundle);
 
     // Initialize PCA9555
     init_pca9555_as_input(UI2C_PORT_0, PCA9555_ADDRESS);
