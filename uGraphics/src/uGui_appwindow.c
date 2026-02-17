@@ -160,7 +160,7 @@ ugui_appwin_t *ugui_appwindow_create(const ugui_appwin_config_t *config, uint32_
         return NULL;
     }
 
-    uflake_mutex_lock(g_appwin_mgr.mutex, UINT32_MAX);
+    uflake_mutex_lock(g_appwin_mgr.mutex, 100);
 
     // Check if window already exists for this app
     ugui_appwin_t *existing = find_window_by_app_id(app_id);
@@ -290,7 +290,7 @@ uflake_result_t ugui_appwindow_destroy(ugui_appwin_t *window)
         return UFLAKE_ERROR;
     }
 
-    uflake_mutex_lock(g_appwin_mgr.mutex, UINT32_MAX);
+    uflake_mutex_lock(g_appwin_mgr.mutex, 100);
 
     UFLAKE_LOGI(TAG, "Destroying app window for app ID %lu", window->app_id);
 
@@ -390,7 +390,7 @@ uflake_result_t ugui_appwindow_activate(ugui_appwin_t *window)
         return UFLAKE_ERROR;
     }
 
-    uflake_mutex_lock(g_appwin_mgr.mutex, UINT32_MAX);
+    uflake_mutex_lock(g_appwin_mgr.mutex, 100);
 
     // Request focus
     ugui_focus_request(&window->focus);
@@ -422,7 +422,7 @@ uflake_result_t ugui_appwindow_deactivate(ugui_appwin_t *window)
         return UFLAKE_ERROR;
     }
 
-    uflake_mutex_lock(g_appwin_mgr.mutex, UINT32_MAX);
+    uflake_mutex_lock(g_appwin_mgr.mutex, 100);
 
     // Release focus
     ugui_focus_release(&window->focus);
@@ -462,7 +462,7 @@ uflake_result_t ugui_appwindow_set_fullscreen(ugui_appwin_t *window, bool fullsc
         return UFLAKE_ERROR;
     }
 
-    uflake_mutex_lock(g_appwin_mgr.mutex, UINT32_MAX);
+    uflake_mutex_lock(g_appwin_mgr.mutex, 100);
 
     if (fullscreen)
     {
@@ -487,7 +487,7 @@ uflake_result_t ugui_appwindow_set_size(ugui_appwin_t *window, uint16_t width, u
         return UFLAKE_ERROR;
     }
 
-    uflake_mutex_lock(g_appwin_mgr.mutex, UINT32_MAX);
+    uflake_mutex_lock(g_appwin_mgr.mutex, 100);
 
     if (width > 0 && height > 0)
     {

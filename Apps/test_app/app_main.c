@@ -29,7 +29,10 @@ void test_app_main(void)
 {
     UFLAKE_LOGI(TAG, "Test App Started - Testing OS-level infinite loop protection!");
 
+    // Infinite loop should yield to prevent starving other tasks
     while (1)
     {
-        }
+        // Yield CPU to allow kernel and other tasks to run
+        uflake_process_yield(100); // Yield for 100ms
+    }
 }

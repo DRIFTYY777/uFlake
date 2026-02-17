@@ -222,7 +222,7 @@ uflake_result_t ugui_theme_set(const ugui_theme_t *theme)
         return UFLAKE_ERROR;
     }
 
-    uflake_mutex_lock(g_theme_mgr.mutex, UINT32_MAX);
+    uflake_mutex_lock(g_theme_mgr.mutex, 100);
 
     g_theme_mgr.current_theme = *theme;
 
@@ -236,7 +236,7 @@ uflake_result_t ugui_theme_set(const ugui_theme_t *theme)
 
         // Acquire GUI mutex for LVGL operations
         uflake_mutex_t *gui_mutex = uGui_get_mutex();
-        if (gui_mutex && uflake_mutex_lock(gui_mutex, UINT32_MAX) == UFLAKE_OK)
+        if (gui_mutex && uflake_mutex_lock(gui_mutex, 100) == UFLAKE_OK)
         {
             update_background_display();
             uflake_mutex_unlock(gui_mutex);
@@ -334,7 +334,7 @@ uflake_result_t ugui_theme_set_bg_color(lv_color_t color)
         return UFLAKE_ERROR;
     }
 
-    uflake_mutex_lock(g_theme_mgr.mutex, UINT32_MAX);
+    uflake_mutex_lock(g_theme_mgr.mutex, 100);
 
     // Free any existing image data
     if (g_theme_mgr.bg_image_data)
@@ -353,7 +353,7 @@ uflake_result_t ugui_theme_set_bg_color(lv_color_t color)
 
     // Acquire GUI mutex for LVGL operations
     uflake_mutex_t *gui_mutex = uGui_get_mutex();
-    if (gui_mutex && uflake_mutex_lock(gui_mutex, UINT32_MAX) == UFLAKE_OK)
+    if (gui_mutex && uflake_mutex_lock(gui_mutex, 100) == UFLAKE_OK)
     {
         update_background_display();
         uflake_mutex_unlock(gui_mutex);
@@ -371,7 +371,7 @@ uflake_result_t ugui_theme_set_bg_image_sdcard(const char *path)
         return UFLAKE_ERROR;
     }
 
-    uflake_mutex_lock(g_theme_mgr.mutex, UINT32_MAX);
+    uflake_mutex_lock(g_theme_mgr.mutex, 100);
 
     UFLAKE_LOGI(TAG, "Attempting to load background image: %s", path);
 
@@ -410,9 +410,10 @@ uflake_result_t ugui_theme_set_bg_image_sdcard(const char *path)
         g_theme_mgr.bg_image_dsc = (lv_image_dsc_t *)uflake_malloc(sizeof(lv_image_dsc_t), UFLAKE_MEM_INTERNAL);
         if (g_theme_mgr.bg_image_dsc)
         {
+            memset(g_theme_mgr.bg_image_dsc, 0, sizeof(lv_image_dsc_t));
             g_theme_mgr.bg_image_dsc->header.w = img.width;
             g_theme_mgr.bg_image_dsc->header.h = img.height;
-            g_theme_mgr.bg_image_dsc->header.cf = LV_COLOR_FORMAT_RGB565;
+            g_theme_mgr.bg_image_dsc->header.cf = LV_COLOR_FORMAT_NATIVE;
             g_theme_mgr.bg_image_dsc->data = img.pixels;
             g_theme_mgr.bg_image_dsc->data_size = img.size;
 
@@ -421,7 +422,7 @@ uflake_result_t ugui_theme_set_bg_image_sdcard(const char *path)
 
             // Acquire GUI mutex before LVGL operations
             uflake_mutex_t *gui_mutex = uGui_get_mutex();
-            if (gui_mutex && uflake_mutex_lock(gui_mutex, UINT32_MAX) == UFLAKE_OK)
+            if (gui_mutex && uflake_mutex_lock(gui_mutex, 100) == UFLAKE_OK)
             {
                 // Delete old image widget if exists and recreate
                 if (g_theme_mgr.bg_image)
@@ -473,7 +474,7 @@ uflake_result_t ugui_theme_set_bg_image_sdcard(const char *path)
 
         // Acquire GUI mutex before LVGL operations
         uflake_mutex_t *gui_mutex = uGui_get_mutex();
-        if (gui_mutex && uflake_mutex_lock(gui_mutex, UINT32_MAX) == UFLAKE_OK)
+        if (gui_mutex && uflake_mutex_lock(gui_mutex, 100) == UFLAKE_OK)
         {
             // Delete any existing image widget
             if (g_theme_mgr.bg_image)
@@ -510,7 +511,7 @@ uflake_result_t ugui_theme_set_bg_image_flash(const char *path)
         return UFLAKE_ERROR;
     }
 
-    uflake_mutex_lock(g_theme_mgr.mutex, UINT32_MAX);
+    uflake_mutex_lock(g_theme_mgr.mutex, 100);
 
     g_theme_mgr.background.type = UGUI_BG_IMAGE_FLASH;
     strncpy(g_theme_mgr.background.image_path, path, sizeof(g_theme_mgr.background.image_path) - 1);
@@ -519,7 +520,7 @@ uflake_result_t ugui_theme_set_bg_image_flash(const char *path)
 
     // Acquire GUI mutex for LVGL operations
     uflake_mutex_t *gui_mutex = uGui_get_mutex();
-    if (gui_mutex && uflake_mutex_lock(gui_mutex, UINT32_MAX) == UFLAKE_OK)
+    if (gui_mutex && uflake_mutex_lock(gui_mutex, 100) == UFLAKE_OK)
     {
         update_background_display();
         uflake_mutex_unlock(gui_mutex);
@@ -549,11 +550,11 @@ uflake_result_t ugui_theme_refresh_background(void)
         return UFLAKE_ERROR;
     }
 
-    uflake_mutex_lock(g_theme_mgr.mutex, UINT32_MAX);
+    uflake_mutex_lock(g_theme_mgr.mutex, 100);
 
     // Acquire GUI mutex for LVGL operations
     uflake_mutex_t *gui_mutex = uGui_get_mutex();
-    if (gui_mutex && uflake_mutex_lock(gui_mutex, UINT32_MAX) == UFLAKE_OK)
+    if (gui_mutex && uflake_mutex_lock(gui_mutex, 100) == UFLAKE_OK)
     {
         update_background_display();
         uflake_mutex_unlock(gui_mutex);

@@ -264,7 +264,7 @@ static void ST7789_config(st7789_driver_t *driver)
         {ST7789_CMD_SWRESET, 200, 0, NULL}, // Reset
         {ST7789_CMD_SLPOUT, 120, 0, NULL},  // Sleep out
 
-        {ST7789_CMD_MADCTL, 0, 1, (const uint8_t *)"\x00"}, // Page / column address order
+        {ST7789_CMD_MADCTL, 0, 1, (const uint8_t *)"\xA0"}, // Landscape mode rotated 180° (MY=1, MV=1)
         {ST7789_CMD_COLMOD, 0, 1, (const uint8_t *)"\x55"}, // 16 bit RGB
         {ST7789_CMD_INVON, 0, 0, NULL},                     // Inversion on
         {ST7789_CMD_CASET, 0, 4, (const uint8_t *)&caset},  // Set width
@@ -361,10 +361,38 @@ static void ST7789_multi_cmd(st7789_driver_t *driver, const st7789_command_t *se
 void ST7789_queue_empty(st7789_driver_t *driver)
 {
     spi_transaction_t *return_trans;
+    const TickType_t timeout_ticks = pdMS_TO_TICKS(1000); // 1 second timeout
+    uint32_t timeout_count = 0;
 
     while (driver->queue_fill > 0)
     {
-        spi_device_get_trans_result(driver->spi, &return_trans, portMAX_DELAY);
-        driver->queue_fill--;
+        // ✅ FIX: Use bounded timeout instead of portMAX_DELAY
+        // If SPI gets stuck (DMA issue, bus contention), this prevents infinite hang
+        esp_err_t ret = spi_device_get_trans_result(driver->spi, &return_trans, timeout_ticks);
+        
+        if (ret == ESP_OK)
+        {
+            driver->queue_fill--;
+            timeout_count = 0; // Reset timeout counter on success
+        }
+        else if (ret == ESP_ERR_TIMEOUT)
+        {
+            timeout_count++;
+            UFLAKE_LOGW(TAG, "SPI transaction timeout #%lu (queue_fill=%d)", timeout_count, driver->queue_fill);
+            
+            // After 3 consecutive timeouts, force reset queue to prevent deadlock
+            if (timeout_count >= 3)
+            {
+                UFLAKE_LOGE(TAG, "SPI queue stuck after 3 timeouts, forcing reset");
+                driver->queue_fill = 0; // Emergency reset
+                break;
+            }
+        }
+        else
+        {
+            UFLAKE_LOGE(TAG, "SPI transaction error: %d", ret);
+            driver->queue_fill = 0; // Reset on error
+            break;
+        }
     }
 }

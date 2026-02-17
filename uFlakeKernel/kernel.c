@@ -30,14 +30,24 @@ void vApplicationTickHook(void)
 // Kernel main task - The "uFlake Kernel" core
 static void kernel_task(void *pvParameters)
 {
-    esp_task_wdt_add(NULL);
-    ESP_LOGI(TAG, "Kernel subscribed to hardware watchdog (exclusive)");
+    esp_err_t err = esp_task_wdt_add(NULL);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Failed to subscribe to watchdog: %d", err);
+    }
+    else
+    {
+        ESP_LOGI(TAG, "Kernel subscribed to hardware watchdog (exclusive)");
+    }
+
+    uint32_t loop_count = 0;
 
     // Main kernel loop - equivalent to OS scheduler main loop
     while (g_kernel.state == KERNEL_STATE_RUNNING)
     {
         // Update tick count
         g_kernel.tick_count++;
+        loop_count++;
 
         // Run scheduler
         uflake_scheduler_tick();
@@ -63,6 +73,8 @@ static void kernel_task(void *pvParameters)
         // Small delay to yield CPU
         vTaskDelay(pdMS_TO_TICKS(100)); // 100ms delay
     }
+
+    ESP_LOGE(TAG, "Kernel loop exited! State=%d", g_kernel.state);
 
     // Unsubscribe from watchdog before exiting
     esp_task_wdt_delete(NULL);

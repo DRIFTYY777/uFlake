@@ -1,9 +1,13 @@
 /**
  * @file uGui_widgets.c
  * @brief Widget Library Implementation
+ * 
+ * IMPORTANT: All LVGL calls must be protected by gui_mutex for thread safety!
+ * This file uses uGui_get_mutex() to lock before any LVGL operations.
  */
 
 #include "uGui_widgets.h"
+#include "uGui.h" // For uGui_get_mutex()
 #include "uGui_focus.h"
 #include "uGui_theme.h"
 #include "logger.h"

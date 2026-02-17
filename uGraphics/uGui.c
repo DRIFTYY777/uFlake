@@ -69,6 +69,7 @@ static void lvgl_flush_cb(lv_display_t *disp, const lv_area_t *area, uint8_t *px
 
     uint8_t *data_ptr = px_map;
     size_t remaining = total_bytes;
+    const TickType_t spi_timeout = pdMS_TO_TICKS(500); // 500ms per transaction
 
     while (remaining > 0)
     {
@@ -81,12 +82,26 @@ static void lvgl_flush_cb(lv_display_t *disp, const lv_area_t *area, uint8_t *px
         trans.length = chunk_size * 8; // bits
         trans.rxlength = 0;
 
-        uspi_queue_trans(driver->spi, &trans, portMAX_DELAY);
+        // ✅ FIX: Use bounded timeout instead of portMAX_DELAY
+        esp_err_t ret = uspi_queue_trans(driver->spi, &trans, spi_timeout);
+        if (ret != ESP_OK)
+        {
+            UFLAKE_LOGE(TAG, "SPI queue failed: %d, aborting flush", ret);
+            lv_display_flush_ready(disp);
+            return;
+        }
         driver->queue_fill++;
 
-        // Wait for transfer to complete
+        // Wait for transfer to complete with timeout
         spi_transaction_t *rtrans;
-        uspi_get_trans_result(driver->spi, &rtrans, portMAX_DELAY);
+        ret = uspi_get_trans_result(driver->spi, &rtrans, spi_timeout);
+        if (ret != ESP_OK)
+        {
+            UFLAKE_LOGE(TAG, "SPI transfer failed: %d, aborting flush", ret);
+            driver->queue_fill--;
+            lv_display_flush_ready(disp);
+            return;
+        }
         driver->queue_fill--;
 
         data_ptr += chunk_size;
@@ -155,8 +170,9 @@ void uGui_init(st7789_driver_t *drv)
 
     UFLAKE_LOGI(TAG, "LVGL buffers allocated: %zu bytes each", buf_bytes);
 
-    // Create LVGL display with swapped dimensions for landscape mode (240x320 physical → 320x240 logical)
-    lv_disp = lv_display_create(driver->display_height, driver->display_width);
+    // Create LVGL display with landscape dimensions (driver already configured as 320x240)
+    lv_disp = lv_display_create(driver->display_width, driver->display_height);
+
     if (!lv_disp)
     {
         UFLAKE_LOGE(TAG, "Failed to create LVGL display");
@@ -201,7 +217,7 @@ void uGui_init(st7789_driver_t *drv)
 
     UFLAKE_LOGI(TAG, "LVGL tick timer started");
 
-    // keypad_init();
+    keypad_init();
 
     // Create GUI task using kernel process manager
     uint32_t gui_pid;
@@ -209,7 +225,7 @@ void uGui_init(st7789_driver_t *drv)
                               gui_task,
                               NULL,
                               1024 * 8,
-                              PROCESS_PRIORITY_HIGH,
+                              PROCESS_PRIORITY_NORMAL, // Lower than kernel priority
                               &gui_pid) != UFLAKE_OK)
     {
         UFLAKE_LOGE(TAG, "Failed to create GUI task");
@@ -314,19 +330,32 @@ static void gui_task(void *arg)
     // Small delay to ensure initialization is complete
     vTaskDelay(pdMS_TO_TICKS(100));
 
-    UFLAKE_LOGI(TAG, "GUI task entering main loop");
-
     while (1)
     {
-        // Watchdog is automatically fed by the kernel
+        uint32_t sleep_time = LV_DEF_REFR_PERIOD; // Default 30ms if mutex fails
+
         if (gui_mutex != NULL)
         {
-            if (uflake_mutex_lock(gui_mutex, UINT32_MAX) == UFLAKE_OK)
+            // Use timeout instead of infinite wait to prevent blocking kernel
+            if (uflake_mutex_lock(gui_mutex, 50) == UFLAKE_OK)
             {
-                lv_timer_handler();
+                // lv_timer_handler returns time in MS until next timer expires
+                // This allows DYNAMIC timing based on actual LVGL workload:
+                // - No animations: returns 50-100ms (GUI sleeps longer)
+                // - Active animations: returns 5-16ms (fast refresh)
+                // - This PREVENTS flooding by adapting to actual needs
+                sleep_time = lv_timer_handler();
                 uflake_mutex_unlock(gui_mutex);
+
+                // Safety bounds: never sleep less than 5ms or more than 100ms
+                if (sleep_time < 5)
+                    sleep_time = 5;
+                if (sleep_time > 100)
+                    sleep_time = 100;
             }
         }
-        uflake_process_yield(10); // Yields CPU and feeds watchdog
+
+        // Yield with DYNAMIC timing based on LVGL's actual needs
+        uflake_process_yield(sleep_time);
     }
 }

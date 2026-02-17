@@ -15,6 +15,7 @@
 #include "appLoader.h"
 #include "uGui.h"
 #include "logger.h"
+#include "lvgl.h"
 
 static const char *TAG = "GUIDemo";
 
@@ -29,7 +30,7 @@ static const app_manifest_t gui_demo_manifest = {
     .description = "Demonstrates GUI features",
     .icon = "demo.png",
     .type = APP_TYPE_INTERNAL,
-    .stack_size = 8192,
+    .stack_size = 4192,
     .priority = 5,
     .requires_gui = true,
     .requires_sdcard = false,
@@ -58,20 +59,37 @@ static void btn_dialog_clicked(lv_event_t *e)
     }
 }
 
+// Static variable to hold loading dialog for timer callback
+static lv_obj_t *g_loading_dialog = NULL;
+
+// LVGL timer callback - runs OUTSIDE event context, safe to use
+static void loading_timer_cb(lv_timer_t *timer)
+{
+    (void)timer; // Unused parameter
+
+    if (g_loading_dialog != NULL)
+    {
+        ugui_hide_loading(g_loading_dialog);
+        ugui_show_message("Done!", 1000);
+        g_loading_dialog = NULL;
+        UFLAKE_LOGI(TAG, "Loading demo completed");
+    }
+}
+
 static void btn_loading_clicked(lv_event_t *e)
 {
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_CLICKED)
     {
-        lv_obj_t *loading = ugui_show_loading("Loading...", UGUI_LOADING_DOTS);
+        g_loading_dialog = ugui_show_loading("Loading...", UGUI_LOADING_DOTS);
 
-        // Simulate work (in real app, do this in separate task)
-        vTaskDelay(pdMS_TO_TICKS(2000));
+        // ✅ FIX: Use LVGL timer instead of blocking vTaskDelay
+        // Event callbacks MUST return immediately - LVGL cardinal rule!
+        // The timer runs in lv_timer_handler() context, safe to delay
+        lv_timer_t *timer = lv_timer_create(loading_timer_cb, 2000, NULL);
+        lv_timer_set_repeat_count(timer, 1); // Run once and auto-delete
 
-        ugui_hide_loading(loading);
-        ugui_show_message("Done!", 1000);
-
-        UFLAKE_LOGI(TAG, "Loading demo completed");
+        UFLAKE_LOGI(TAG, "Loading demo started (non-blocking)");
     }
 }
 
@@ -162,6 +180,27 @@ void gui_demo_app_main(void)
         return;
     }
 
+    // ========================================================================
+    // CRITICAL: Lock GUI mutex for ALL LVGL operations!
+    // LVGL is NOT thread-safe - all LVGL calls must be serialized.
+    // The GUI task holds this mutex during lv_timer_handler(), so we must
+    // acquire it before creating any UI objects.
+    // ========================================================================
+    uflake_mutex_t *gui_mutex = uGui_get_mutex();
+    if (!gui_mutex)
+    {
+        UFLAKE_LOGE(TAG, "Failed to get GUI mutex!");
+        return;
+    }
+
+    if (uflake_mutex_lock(gui_mutex, 5000) != UFLAKE_OK)
+    {
+        UFLAKE_LOGE(TAG, "Failed to acquire GUI mutex - timeout");
+        return;
+    }
+
+    UFLAKE_LOGI(TAG, "GUI mutex acquired, creating UI...");
+
     // Create app window (automatic focus, safe cleanup)
     ugui_appwin_config_t config = {
         .app_name = "GUI Demo",
@@ -178,6 +217,7 @@ void gui_demo_app_main(void)
     if (!window)
     {
         UFLAKE_LOGE(TAG, "Failed to create app window");
+        uflake_mutex_unlock(gui_mutex);
         return;
     }
 
@@ -228,14 +268,17 @@ void gui_demo_app_main(void)
     // Fade in animation
     ugui_appwindow_fade_in(window, 300);
 
-    UFLAKE_LOGI(TAG, "UI created with %d buttons", 5);
-    UFLAKE_LOGI(TAG, "Use navigation buttons to interact!");
-    UFLAKE_LOGI(TAG, "App exiting - GUI stays alive (no while loop!)");
+    // ========================================================================
+    // CRITICAL: Unlock GUI mutex AFTER all UI creation is complete
+    // Now the GUI task can resume rendering
+    // ========================================================================
+    uflake_mutex_unlock(gui_mutex);
+    UFLAKE_LOGI(TAG, "GUI mutex released, UI creation complete");
 
-    // NO WHILE LOOP!
-    // LVGL handles everything, window stays until app loader closes it
-    // When app exits normally, this is fine. App loader will clean up.
-
-    // In a real app, the app loader would call ugui_appwindow_destroy(window)
-    // when terminating the app, which safely cleans everything up.
+    // Main loop - yield CPU and keep app alive
+    // LVGL event callbacks will run in the GUI task context (already mutex-protected)
+    while (1)
+    {
+        uflake_process_yield(100);
+    }
 }

@@ -143,7 +143,9 @@ void uflake_timer_process(void)
     if (!timer_mutex)
         return;
 
-    xSemaphoreTake(timer_mutex, portMAX_DELAY);
+    // Use timeout to prevent deadlock
+    if (xSemaphoreTake(timer_mutex, pdMS_TO_TICKS(10)) != pdTRUE)
+        return;
 
     uint32_t current_time = xTaskGetTickCount();
     timer_node_t *node = timer_list_head;

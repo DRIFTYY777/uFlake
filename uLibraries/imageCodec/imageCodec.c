@@ -9,6 +9,7 @@
 #include "esp_log.h"
 
 #include "logger.h"
+#include "kernel.h"
 
 /* ESP NEW JPEG (Correct API from esp_new_jpeg) */
 #include "esp_jpeg_dec.h"
@@ -64,10 +65,14 @@ static bool decode_jpeg(const img_reader_t *r,
     uint8_t *out_buf = NULL;
 
     size_t jpg_size = r->size(r->user_ctx);
-    jpg_buf = malloc(jpg_size);
+    UFLAKE_LOGI(TAG, "Allocating %zu bytes for JPEG input", jpg_size);
+
+    // Try INTERNAL memory first for input buffer
+    jpg_buf = (uint8_t *)uflake_malloc(jpg_size, UFLAKE_MEM_SPIRAM);
     if (!jpg_buf)
     {
-        UFLAKE_LOGE(TAG, "Failed to allocate JPEG input buffer");
+        UFLAKE_LOGE(TAG, "Failed to allocate JPEG input buffer (%zu bytes)", jpg_size);
+        // uflake_mem_print_stats();
         return false;
     }
 
@@ -76,7 +81,7 @@ static bool decode_jpeg(const img_reader_t *r,
     if (read_size != jpg_size)
     {
         UFLAKE_LOGE(TAG, "Failed to read JPEG file");
-        free(jpg_buf);
+        uflake_free(jpg_buf);
         return false;
     }
 
@@ -148,7 +153,7 @@ static bool decode_jpeg(const img_reader_t *r,
     if (ret != JPEG_ERR_OK)
     {
         UFLAKE_LOGE(TAG, "JPEG decoder init failed: %d", ret);
-        free(jpg_buf);
+        uflake_free(jpg_buf);
         return false;
     }
 
@@ -209,6 +214,15 @@ static bool decode_jpeg(const img_reader_t *r,
         goto cleanup;
     }
 
+    /* Convert from big-endian (BE) to little-endian (LE) RGB565 for LVGL/ST7789 */
+    uint16_t *pixels_u16 = (uint16_t *)out_buf;
+    size_t pixel_count = out_info->width * out_info->height;
+    for (size_t i = 0; i < pixel_count; i++)
+    {
+        uint16_t pixel = pixels_u16[i];
+        pixels_u16[i] = (pixel >> 8) | (pixel << 8); // Swap bytes
+    }
+
     /* Fill output structure */
     out->width = out_info->width;
     out->height = out_info->height;
@@ -226,7 +240,7 @@ cleanup:
     if (out_info)
         free(out_info);
     if (jpg_buf)
-        free(jpg_buf);
+        uflake_free(jpg_buf);
     if (out_buf)
     {
         if ((uintptr_t)out_buf % 16 == 0)

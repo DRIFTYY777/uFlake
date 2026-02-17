@@ -288,7 +288,7 @@ uflake_result_t ugui_notification_set_theme(const ugui_theme_t *theme)
         return UFLAKE_ERROR;
     }
 
-    uflake_mutex_lock(g_notif.mutex, UINT32_MAX);
+    uflake_mutex_lock(g_notif.mutex, 100);
 
     g_notif.theme = *theme;
 
@@ -376,7 +376,7 @@ uflake_result_t ugui_notification_update_status(const ugui_system_status_t *stat
         return UFLAKE_ERROR;
     }
 
-    uflake_mutex_lock(g_notif.mutex, UINT32_MAX);
+    uflake_mutex_lock(g_notif.mutex, 100);
 
     g_notif.status = *status;
     update_display();
@@ -393,7 +393,7 @@ uflake_result_t ugui_notification_update_battery(uint8_t percent, bool charging)
         return UFLAKE_ERROR;
     }
 
-    uflake_mutex_lock(g_notif.mutex, UINT32_MAX);
+    uflake_mutex_lock(g_notif.mutex, 100);
 
     g_notif.status.battery_percent = percent > 100 ? 100 : percent;
     g_notif.status.charging = charging;
@@ -411,7 +411,7 @@ uflake_result_t ugui_notification_update_wifi(bool connected)
         return UFLAKE_ERROR;
     }
 
-    uflake_mutex_lock(g_notif.mutex, UINT32_MAX);
+    uflake_mutex_lock(g_notif.mutex, 100);
 
     g_notif.status.wifi_connected = connected;
     update_display();
@@ -428,7 +428,7 @@ uflake_result_t ugui_notification_update_bluetooth(bool connected)
         return UFLAKE_ERROR;
     }
 
-    uflake_mutex_lock(g_notif.mutex, UINT32_MAX);
+    uflake_mutex_lock(g_notif.mutex, 100);
 
     g_notif.status.bt_connected = connected;
     update_display();
@@ -445,7 +445,7 @@ uflake_result_t ugui_notification_update_sdcard(bool mounted)
         return UFLAKE_ERROR;
     }
 
-    uflake_mutex_lock(g_notif.mutex, UINT32_MAX);
+    uflake_mutex_lock(g_notif.mutex, 100);
 
     g_notif.status.sdcard_mounted = mounted;
     update_display();
@@ -462,7 +462,7 @@ uflake_result_t ugui_notification_update_time(uint8_t hour, uint8_t minute)
         return UFLAKE_ERROR;
     }
 
-    uflake_mutex_lock(g_notif.mutex, UINT32_MAX);
+    uflake_mutex_lock(g_notif.mutex, 100);
 
     g_notif.status.hour = hour % 24;
     g_notif.status.minute = minute % 60;
@@ -484,7 +484,7 @@ uflake_result_t ugui_notification_show_app_name(const char *app_name, uint32_t d
         return UFLAKE_ERROR;
     }
 
-    uflake_mutex_lock(g_notif.mutex, UINT32_MAX);
+    uflake_mutex_lock(g_notif.mutex, 100);
 
     strncpy(g_notif.app_name, app_name, sizeof(g_notif.app_name) - 1);
     g_notif.app_name[sizeof(g_notif.app_name) - 1] = '\0';
@@ -525,7 +525,7 @@ uflake_result_t ugui_notification_clear_app_name(void)
         return UFLAKE_ERROR;
     }
 
-    uflake_mutex_lock(g_notif.mutex, UINT32_MAX);
+    uflake_mutex_lock(g_notif.mutex, 100);
 
     g_notif.showing_app_name = false;
 
@@ -554,7 +554,7 @@ uflake_result_t ugui_notification_show_loading(bool show)
         return UFLAKE_ERROR;
     }
 
-    uflake_mutex_lock(g_notif.mutex, UINT32_MAX);
+    uflake_mutex_lock(g_notif.mutex, 100);
 
     g_notif.loading_active = show;
 
@@ -603,7 +603,7 @@ uflake_result_t ugui_notification_set_icons(const ugui_notif_icons_t *icons)
         return UFLAKE_ERROR;
     }
 
-    uflake_mutex_lock(g_notif.mutex, UINT32_MAX);
+    uflake_mutex_lock(g_notif.mutex, 100);
 
     g_notif.icon_config = *icons;
     update_display();
@@ -641,7 +641,7 @@ uflake_result_t ugui_notification_refresh(void)
         return UFLAKE_ERROR;
     }
 
-    uflake_mutex_lock(g_notif.mutex, UINT32_MAX);
+    uflake_mutex_lock(g_notif.mutex, 100);
     update_display();
     uflake_mutex_unlock(g_notif.mutex);
 

@@ -108,7 +108,9 @@ void uflake_watchdog_check_timeouts(void)
     if (!watchdog_mutex)
         return;
 
-    xSemaphoreTake(watchdog_mutex, portMAX_DELAY);
+    // Use timeout to prevent deadlock
+    if (xSemaphoreTake(watchdog_mutex, pdMS_TO_TICKS(10)) != pdTRUE)
+        return;
 
     uint32_t current_time = xTaskGetTickCount();
 

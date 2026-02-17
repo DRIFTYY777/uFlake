@@ -120,8 +120,12 @@ uflake_result_t uflake_process_create(const char *name, process_entry_t entry, v
 
 void uflake_scheduler_tick(void)
 {
-    // Update process statistics
-    xSemaphoreTake(scheduler_mutex, portMAX_DELAY);
+    // Update process statistics with timeout to prevent deadlock
+    if (xSemaphoreTake(scheduler_mutex, pdMS_TO_TICKS(10)) != pdTRUE)
+    {
+        // Could not acquire mutex - skip this tick
+        return;
+    }
 
     uflake_process_t *current = process_list;
     while (current)

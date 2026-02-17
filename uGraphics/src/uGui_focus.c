@@ -109,7 +109,7 @@ ugui_focus_ctx_t *ugui_focus_register(lv_obj_t *obj, ugui_layer_t layer, bool au
         return NULL;
     }
 
-    uflake_mutex_lock(g_focus_mgr.mutex, UINT32_MAX);
+    uflake_mutex_lock(g_focus_mgr.mutex, 100);
 
     // Check if already registered
     ugui_focus_ctx_t *existing = find_context_by_obj(obj);
@@ -153,7 +153,7 @@ uflake_result_t ugui_focus_unregister(ugui_focus_ctx_t *ctx) {
         return UFLAKE_ERROR;
     }
 
-    uflake_mutex_lock(g_focus_mgr.mutex, UINT32_MAX);
+    uflake_mutex_lock(g_focus_mgr.mutex, 100);
 
     lv_obj_t *obj = ctx->focused_obj;
     ugui_layer_t layer = ctx->layer;
@@ -182,7 +182,7 @@ uflake_result_t ugui_focus_request(ugui_focus_ctx_t *ctx) {
         return UFLAKE_ERROR;
     }
 
-    uflake_mutex_lock(g_focus_mgr.mutex, UINT32_MAX);
+    uflake_mutex_lock(g_focus_mgr.mutex, 100);
 
     // Only grant focus if layer is top-most or higher
     if (ctx->layer >= g_focus_mgr.active_layer) {
@@ -202,7 +202,7 @@ uflake_result_t ugui_focus_release(ugui_focus_ctx_t *ctx) {
         return UFLAKE_ERROR;
     }
 
-    uflake_mutex_lock(g_focus_mgr.mutex, UINT32_MAX);
+    uflake_mutex_lock(g_focus_mgr.mutex, 100);
 
     // Update active layer to next highest
     g_focus_mgr.active_layer = find_highest_active_layer();

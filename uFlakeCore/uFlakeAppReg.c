@@ -25,8 +25,8 @@ void register_builtin_apps(void)
     app_loader_register(&launcher_app);
     app_loader_register(&adc_reader_app);
 
-    app_loader_launch(app_loader_register(&test_app));
+    // app_loader_launch(app_loader_register(&test_app));
 
-    // app_loader_launch(app_loader_register(&gui_demo_app));
-    // app_loader_launch(app_loader_register(&counter_cpp_app));
+    app_loader_launch(app_loader_register(&gui_demo_app));
+    //  app_loader_launch(app_loader_register(&counter_cpp_app));
 }

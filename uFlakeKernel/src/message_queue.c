@@ -269,7 +269,9 @@ void uflake_messagequeue_process(void)
 
     last_cleanup_tick = current_tick;
 
-    xSemaphoreTake(msgqueue_mutex, portMAX_DELAY);
+    // Use timeout to prevent deadlock
+    if (xSemaphoreTake(msgqueue_mutex, pdMS_TO_TICKS(10)) != pdTRUE)
+        return;
 
     uflake_msgqueue_t *current = queue_list;
     uint32_t total_queues = 0;

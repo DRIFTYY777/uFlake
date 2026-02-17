@@ -143,7 +143,9 @@ void uflake_event_process(void)
     {
         ESP_LOGD(TAG, "Processing event: %s", event.name);
 
-        xSemaphoreTake(event_mutex, portMAX_DELAY);
+        // Use timeout to prevent deadlock
+        if (xSemaphoreTake(event_mutex, pdMS_TO_TICKS(10)) != pdTRUE)
+            continue;
 
         subscription_node_t *current = subscription_list;
         uint32_t callback_count = 0;

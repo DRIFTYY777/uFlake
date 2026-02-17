@@ -191,11 +191,11 @@ static void render_boot_screen_strip(st7789_driver_t *driver, int strip_y, int s
         render_plasma_line(&buffer[y * width], strip_y + y, frame, width);
     }
 
-    // Add text overlay if in visible range
-    if (frame < 100 && strip_y < 140 && (strip_y + strip_height) > 80)
+    // Add text overlay if in visible range (centered for landscape mode)
+    if (frame < 100 && strip_y < 150 && (strip_y + strip_height) > 90)
     {
         render_text_overlay(buffer, strip_y, frame, "uFlake",
-                            width / 2 - 80, 100,
+                            width / 2 - 80, 120,
                             width, strip_height);
     }
 }
@@ -209,6 +209,7 @@ static void boot_screen_task(void *arg)
 
     const int display_height = driver->display_height;
     const int display_width = driver->display_width;
+
     const int strips_per_frame = display_height / BOOT_SCREEN_STRIP_HEIGHT;
     const int frame_delay_ms = 1000 / BOOT_SCREEN_FPS;
 
