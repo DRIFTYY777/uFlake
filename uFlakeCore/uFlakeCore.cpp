@@ -18,8 +18,9 @@
 #include "nrf24.h"
 #include "ST7789.h"
 #include "sdCard.h"
-#include "uGui.h"
 #include "uBootScreen.h"
+
+#include "uGUI.h"
 
 static const char *TAG = "UFLAKE_CORE";
 
@@ -105,6 +106,8 @@ void config_and_init_nrf24()
 
 #include "input.h"
 
+uGUI gui;
+
 void uflake_core_init(void)
 {
     // Initialize the kernel
@@ -134,8 +137,9 @@ void uflake_core_init(void)
     config_and_init_nrf24();
     config_and_init_sd_card();
 
-    uGui_init(&display);
+    // uGui_init(&display);
 
+    gui.initialize(display.display_width, display.display_height);
     register_builtin_apps();
 
     UFLAKE_LOGI(TAG, "uFlake Core initialized successfully");

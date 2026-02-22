@@ -3,7 +3,13 @@
 #include "esp_system.h"
 
 static const char *TAG = "PANIC";
-static uflake_panic_info_t last_panic_info = {0};
+static uflake_panic_info_t last_panic_info = {
+    .reason = PANIC_REASON_UNKNOWN,
+    .timestamp = 0,
+    .task_handle = 0,
+    .task_name = {0},
+    .stack_pointer = nullptr,
+    .message = {0}};
 static bool panic_occurred = false;
 
 uflake_result_t uflake_panic_init(void)

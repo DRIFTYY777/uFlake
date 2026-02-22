@@ -63,8 +63,12 @@ uflake_result_t uflake_uart_init(uflake_uart_handle_t *handle, const uflake_uart
         .parity = config->parity,
         .stop_bits = config->stop_bits,
         .flow_ctrl = config->flow_ctrl,
-        .rx_flow_ctrl_thresh = config->rx_flow_ctrl_thresh,
+        .rx_flow_ctrl_thresh = (uint8_t)config->rx_flow_ctrl_thresh,
         .source_clk = UART_SCLK_DEFAULT,
+        .flags = {
+            .allow_pd = false,
+            .backup_before_sleep = false,
+        },
     };
 
     int intr_alloc_flags = 0;

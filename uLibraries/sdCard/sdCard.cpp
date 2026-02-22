@@ -23,14 +23,15 @@ int sdCard_init(SD_CardConfig *cfg)
 
     esp_err_t ret;
 
-    esp_vfs_fat_sdmmc_mount_config_t mount_config = {
+    esp_vfs_fat_sdmmc_mount_config_t mount_config;
+    memset(&mount_config, 0, sizeof(esp_vfs_fat_sdmmc_mount_config_t));
 #ifdef CONFIG_EXAMPLE_FORMAT_IF_MOUNT_FAILED
-        .format_if_mount_failed = true,
+    mount_config.format_if_mount_failed = true;
 #else
-        .format_if_mount_failed = false,
-#endif // EXAMPLE_FORMAT_IF_MOUNT_FAILED
-        .max_files = 5,
-        .allocation_unit_size = 16 * 1024};
+    mount_config.format_if_mount_failed = false;
+#endif
+    mount_config.max_files = 5;
+    mount_config.allocation_unit_size = 16 * 1024;
 
     sdmmc_card_t *card;
     const char mount_point[] = MOUNT_POINT;
@@ -85,8 +86,8 @@ int sdCard_init(SD_CardConfig *cfg)
     // This initializes the slot without card detect (CD) and write protect (WP) signals.
     // Modify slot_config.gpio_cd and slot_config.gpio_wp if your board has these signals.
     sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
-    slot_config.gpio_cs = config->csPin;
-    slot_config.host_id = host.slot;
+    slot_config.gpio_cs = static_cast<gpio_num_t>(config->csPin);
+    slot_config.host_id = static_cast<spi_host_device_t>(host.slot);
 
     UFLAKE_LOGI(TAG, "Mounting filesystem");
     /* give SD card time to power up / settle */
@@ -100,13 +101,13 @@ int sdCard_init(SD_CardConfig *cfg)
         if (ret == ESP_FAIL)
         {
             UFLAKE_LOGE(TAG, "Failed to mount filesystem. "
-                          "If you want the card to be formatted, set the CONFIG_EXAMPLE_FORMAT_IF_MOUNT_FAILED menuconfig option.");
+                             "If you want the card to be formatted, set the CONFIG_EXAMPLE_FORMAT_IF_MOUNT_FAILED menuconfig option.");
         }
         else
         {
             UFLAKE_LOGE(TAG, "Failed to initialize the card (%s). "
-                          "Make sure SD card lines have pull-up resistors in place.",
-                     esp_err_to_name(ret));
+                             "Make sure SD card lines have pull-up resistors in place.",
+                        esp_err_to_name(ret));
 #ifdef CONFIG_EXAMPLE_DEBUG_PIN_CONNECTIONS
             check_sd_card_pins(&cfg, pin_count);
 #endif

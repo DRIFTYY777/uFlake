@@ -88,15 +88,12 @@ uflake_result_t uflake_process_create(const char *name, process_entry_t entry, v
     wrapper_args->entry = entry;
     wrapper_args->args = args;
 
-    // Create FreeRTOS task
-    BaseType_t result = xTaskCreate(
-        process_wrapper,
-        process->name,
-        stack_size / sizeof(StackType_t),
-        wrapper_args, // Pass wrapper args, not just process
-        priority + 1, // FreeRTOS priority offset
-        &process->task_handle);
-
+    BaseType_t result = xTaskCreate(process_wrapper,
+                                    name,
+                                    stack_size,
+                                    wrapper_args,
+                                    priority + 1, // FreeRTOS priorities start at 1
+                                    &process->task_handle);
     if (result != pdPASS)
     {
         uflake_free(process);

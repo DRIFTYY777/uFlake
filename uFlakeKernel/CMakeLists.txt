@@ -1,19 +1,19 @@
 idf_component_register(
     SRCS 
-        "kernel.c"
-        "src/memory_manager.c"
-        "src/scheduler.c"
-        "src/panic_handler.c"
-        "src/logger.c"
-        "src/synchronization.c"
-        "src/crypto_engine.c"
-        "src/buffer_manager.c"
-        "src/timer_manager.c"
-        "src/message_queue.c"
-        "src/watchdog_manager.c"
-        "src/event_manager.c"
-        "src/resource_manager.c"
-        "src/hw_auth.c"
+        "kernel.cpp"
+        "src/memory_manager.cpp"
+        "src/scheduler.cpp"
+        "src/panic_handler.cpp"
+        "src/logger.cpp"
+        "src/synchronization.cpp"
+        "src/crypto_engine.cpp"
+        "src/buffer_manager.cpp"
+        "src/timer_manager.cpp"
+        "src/message_queue.cpp"
+        "src/watchdog_manager.cpp"
+        "src/event_manager.cpp"
+        "src/resource_manager.cpp"
+        "src/hw_auth.cpp"
     
     INCLUDE_DIRS 
         "."
@@ -82,4 +82,4 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
 endif()
 
 # Set component name for better identification
-set(COMPONENT_NAME "uFlakeKernal")
+set(COMPONENT_NAME "uFlakeKernel")

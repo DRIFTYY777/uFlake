@@ -14,6 +14,9 @@ static void ST7789_send_cmd(st7789_driver_t *driver, const st7789_command_t *com
 static void ST7789_config(st7789_driver_t *driver);
 static void ST7789_multi_cmd(st7789_driver_t *driver, const st7789_command_t *sequence);
 
+// local copy of the display driver for use in the flush callback
+static st7789_driver_t display;
+
 bool ST7789_init(st7789_driver_t *driver)
 {
     UFLAKE_LOGI(TAG, "Initializing ST7789 display...");
@@ -49,7 +52,7 @@ bool ST7789_init(st7789_driver_t *driver)
 
     // Configure SPI device using uFlake HAL
     uspi_device_config_t spi_config = {
-        .cs_pin = driver->pin_cs,
+        .cs_pin = (uint8_t)driver->pin_cs,
         .clock_speed_hz = driver->spi_speed,
         .mode = USPI_MODE_3,
         .queue_size = ST7789_SPI_QUEUE_SIZE,
@@ -74,6 +77,8 @@ bool ST7789_init(st7789_driver_t *driver)
     // Initialize the display
     ST7789_reset(driver);
     ST7789_config(driver);
+
+    display = *driver; // Store a local copy for use in the flush callback
 
     UFLAKE_LOGI(TAG, "Display configured and ready (%dx%d)", driver->display_width, driver->display_height);
 
@@ -234,11 +239,22 @@ void ST7789_set_endian(st7789_driver_t *driver)
 
 void ST7789_invert_display(st7789_driver_t *driver, bool invert)
 {
+    uint8_t cmd = invert ? ST7789_CMD_INVON : ST7789_CMD_INVOFF;
     const st7789_command_t init_sequence2[] = {
-        {invert ? ST7789_CMD_INVON : ST7789_CMD_INVOFF, 0, 0, NULL},
+        {cmd, 0, 0, NULL},
         {ST7789_CMDLIST_END, 0, 0, NULL},
     };
     ST7789_multi_cmd(driver, init_sequence2);
+}
+
+void lvgl_flush_cb(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map)
+{
+    uint32_t size = lv_area_get_width(area) * lv_area_get_height(area);
+    ST7789_set_window(&display, area->x1, area->y1, area->x2, area->y2);
+    display.current_buffer = (st7789_color_t *)px_map;
+    display.buffer_size = size;
+    ST7789_swap_buffers(&display);
+    lv_disp_flush_ready(disp);
 }
 
 /**********************
@@ -251,13 +267,13 @@ static void ST7789_config(st7789_driver_t *driver)
     const uint8_t caset[4] = {
         0x00,
         0x00,
-        (driver->display_width - 1) >> 8,
-        (driver->display_width - 1) & 0xff};
+        (uint8_t)((driver->display_width - 1) >> 8),
+        (uint8_t)((driver->display_width - 1) & 0xff)};
     const uint8_t raset[4] = {
         0x00,
         0x00,
-        (driver->display_height - 1) >> 8,
-        (driver->display_height - 1) & 0xff};
+        (uint8_t)((driver->display_height - 1) >> 8),
+        (uint8_t)((driver->display_height - 1) & 0xff)};
     const st7789_command_t init_sequence[] = {
         // Sleep
         {ST7789_CMD_SLPIN, 10, 0, NULL},    // Sleep
@@ -369,7 +385,7 @@ void ST7789_queue_empty(st7789_driver_t *driver)
         // ✅ FIX: Use bounded timeout instead of portMAX_DELAY
         // If SPI gets stuck (DMA issue, bus contention), this prevents infinite hang
         esp_err_t ret = spi_device_get_trans_result(driver->spi, &return_trans, timeout_ticks);
-        
+
         if (ret == ESP_OK)
         {
             driver->queue_fill--;
@@ -379,7 +395,7 @@ void ST7789_queue_empty(st7789_driver_t *driver)
         {
             timeout_count++;
             UFLAKE_LOGW(TAG, "SPI transaction timeout #%lu (queue_fill=%d)", timeout_count, driver->queue_fill);
-            
+
             // After 3 consecutive timeouts, force reset queue to prevent deadlock
             if (timeout_count >= 3)
             {

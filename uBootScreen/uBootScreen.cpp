@@ -19,7 +19,10 @@ static const char *TAG = "uBootScreen";
 static uint8_t dither_table[256];
 
 // Boot screen state
-static boot_screen_state_t boot_state = {0};
+static boot_screen_state_t boot_state;
+
+// Initialization flag
+static bool boot_state_initialized = false;
 
 // Fast sine lookup
 static inline uint8_t fast_sin(int value)
@@ -252,7 +255,9 @@ static void boot_screen_task(void *arg)
                                          : driver->buffer_primary;
         }
 
-        boot_state.frame++;
+        // Increment frame counter (avoid deprecated volatile increment)
+        int current_frame = boot_state.frame;
+        boot_state.frame = current_frame + 1;
 
         // Frame rate limiting
         uint64_t frame_time = (esp_timer_get_time() - frame_start) / 1000;
@@ -282,6 +287,13 @@ esp_err_t uboot_screen_start(st7789_driver_t *driver)
         return ESP_ERR_INVALID_ARG;
     }
 
+    // Initialize boot state structure
+    if (!boot_state_initialized)
+    {
+        memset(&boot_state, 0, sizeof(boot_screen_state_t));
+        boot_state_initialized = true;
+    }
+
     boot_state.driver = driver;
     boot_state.running = true;
     boot_state.completed = false;
@@ -297,7 +309,7 @@ esp_err_t uboot_screen_start(st7789_driver_t *driver)
                               boot_screen_task,
                               driver,
                               4096,
-                              BOOT_SCREEN_TASK_PRIORITY,
+                              PROCESS_PRIORITY_CRITICAL,
                               &gui_pid) != UFLAKE_OK)
     {
         UFLAKE_LOGE(TAG, "Failed to create GUI process");
@@ -321,6 +333,8 @@ void uboot_screen_stop(void)
         {
             vTaskDelay(pdMS_TO_TICKS(10));
         }
+
+        ugpio_pwm_set_duty(BACKLIGHT_PIN, 0);
     }
 }
 

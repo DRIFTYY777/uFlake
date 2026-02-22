@@ -3,7 +3,7 @@
 
 idf_component_register(
     SRCS 
-        "input/input.c"
+        "input/input.cpp"
 
     
     INCLUDE_DIRS 
@@ -26,7 +26,6 @@ idf_component_register(
     PRIV_REQUIRES
         esp_hw_support
         esp_system
-        sdmmc
 )
 
 # Set compiler flags for hardware drivers

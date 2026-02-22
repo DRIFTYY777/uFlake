@@ -7,7 +7,10 @@
 
 static const char *TAG = "MEM_MGR";
 static SemaphoreHandle_t memory_mutex = NULL;
-static uflake_mem_stats_t mem_stats[3] = {0}; // For each memory type
+static uflake_mem_stats_t mem_stats[3] = {
+    {.total_size = 0, .free_size = 0, .used_size = 0, .largest_free_block = 0, .allocations = 0, .deallocations = 0},
+    {.total_size = 0, .free_size = 0, .used_size = 0, .largest_free_block = 0, .allocations = 0, .deallocations = 0},
+    {.total_size = 0, .free_size = 0, .used_size = 0, .largest_free_block = 0, .allocations = 0, .deallocations = 0}}; // For each memory type
 
 // Track allocation metadata for better statistics
 typedef struct
@@ -18,10 +21,18 @@ typedef struct
 } mem_allocation_t;
 
 #define MAX_TRACKED_ALLOCS 256
-static mem_allocation_t tracked_allocs[MAX_TRACKED_ALLOCS] = {0};
+static mem_allocation_t tracked_allocs[MAX_TRACKED_ALLOCS];
 
 uflake_result_t uflake_memory_init(void)
 {
+    // Initialize tracked allocations
+    for (int i = 0; i < MAX_TRACKED_ALLOCS; i++)
+    {
+        tracked_allocs[i].ptr = NULL;
+        tracked_allocs[i].size = 0;
+        tracked_allocs[i].type = UFLAKE_MEM_INTERNAL;
+    }
+
     memory_mutex = xSemaphoreCreateMutex();
     if (!memory_mutex)
     {
@@ -153,7 +164,7 @@ void uflake_free(void *ptr)
             // Clear tracking entry
             tracked_allocs[i].ptr = NULL;
             tracked_allocs[i].size = 0;
-            tracked_allocs[i].type = 0;
+            tracked_allocs[i].type = UFLAKE_MEM_INTERNAL;
 
             ESP_LOGD(TAG, "Freed %u bytes at %p", (unsigned)size, ptr);
             break;

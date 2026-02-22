@@ -105,6 +105,7 @@ extern "C"
     void ST7789_set_endian(st7789_driver_t *driver);
     void ST7789_invert_display(st7789_driver_t *driver, bool invert);
 
+    void lvgl_flush_cb(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map);
 
 #ifdef __cplusplus
 }

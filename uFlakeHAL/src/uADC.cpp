@@ -55,6 +55,7 @@ esp_err_t uADC_init_continuous(uadc_unit_t _unit, uadc_channel_t *channel,
     adc_continuous_handle_cfg_t adc_config = {
         .max_store_buf_size = 1024,
         .conv_frame_size = ADC_READ_LEN,
+        .flags = 0,
     };
 
     esp_err_t ret = adc_continuous_new_handle(&adc_config, &continuous_handle);
@@ -95,6 +96,7 @@ esp_err_t uADC_init_continuous(uadc_unit_t _unit, uadc_channel_t *channel,
         user_callback = callback;
         adc_continuous_evt_cbs_t cbs = {
             .on_conv_done = adc_conv_done_isr_callback,
+            .on_pool_ovf = nullptr,
         };
         ret = adc_continuous_register_event_callbacks(continuous_handle, &cbs, NULL);
         if (ret != ESP_OK)
@@ -214,7 +216,9 @@ esp_err_t uADC_init_oneshot(uadc_unit_t _unit)
 
     // Initialize ADC oneshot unit
     adc_oneshot_unit_init_cfg_t init_config = {
-        .unit_id = _unit,
+        .unit_id = (adc_unit_t)_unit,
+        .clk_src = ADC_RTC_CLK_SRC_DEFAULT,
+        .ulp_mode = ADC_ULP_MODE_DISABLE,
     };
 
     esp_err_t ret = adc_oneshot_new_unit(&init_config, handle_ptr);
@@ -260,11 +264,11 @@ esp_err_t uADC_read_oneshot(uadc_unit_t _unit, uadc_channel_t channel, int *raw_
 
     // Configure channel (attenuation)
     adc_oneshot_chan_cfg_t config = {
-        .bitwidth = ADC_BITWIDTH,
         .atten = ADC_ATTEN,
+        .bitwidth = ADC_BITWIDTH,
     };
 
-    esp_err_t ret = adc_oneshot_config_channel(handle, channel, &config);
+    esp_err_t ret = adc_oneshot_config_channel(handle, (adc_channel_t)channel, &config);
     if (ret != ESP_OK)
     {
         UFLAKE_LOGE(TAG, "Failed to configure channel: %s", esp_err_to_name(ret));
@@ -272,7 +276,7 @@ esp_err_t uADC_read_oneshot(uadc_unit_t _unit, uadc_channel_t channel, int *raw_
     }
 
     // Read ADC value
-    ret = adc_oneshot_read(handle, channel, raw_value);
+    ret = adc_oneshot_read(handle, (adc_channel_t)channel, raw_value);
     if (ret != ESP_OK)
     {
         UFLAKE_LOGE(TAG, "Failed to read ADC: %s", esp_err_to_name(ret));

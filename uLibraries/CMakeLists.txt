@@ -3,11 +3,11 @@
 
 idf_component_register(
     SRCS 
-        "st7789/ST7789.c"
-        "pca9555/PCA9555.c"
-        "sdCard/sdCard.c"
-        "nrf24/nrf24.c"
-        "imageCodec/imageCodec.c"
+        "st7789/ST7789.cpp"
+        "pca9555/PCA9555.cpp"
+        "sdCard/sdCard.cpp"
+        "nrf24/nrf24.cpp"
+        "imageCodec/imageCodec.cpp"
     
     INCLUDE_DIRS 
         "."

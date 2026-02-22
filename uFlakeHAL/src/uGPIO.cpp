@@ -16,7 +16,8 @@ typedef struct
     bool active;
 } gpio_isr_context_t;
 
-static gpio_isr_context_t gpio_isr_contexts[MAX_GPIO_PINS] = {0};
+// Initialize all elements to zero (nullptr, false)
+static gpio_isr_context_t gpio_isr_contexts[MAX_GPIO_PINS] = {};
 static bool isr_service_installed = false;
 
 // ========== PWM Management ==========
@@ -35,8 +36,22 @@ typedef struct
     bool in_use;
 } pwm_channel_info_t;
 
-static pwm_channel_info_t pwm_channels[MAX_PWM_CHANNELS] = {0};
+// Declare arrays first
+static pwm_channel_info_t pwm_channels[MAX_PWM_CHANNELS];
 static bool ledc_timer_configured = false;
+static bool pwm_channels_initialized = false;
+
+// Static initialization helper function
+static void init_pwm_channels_array()
+{
+    for (int i = 0; i < MAX_PWM_CHANNELS; i++)
+    {
+        pwm_channels[i].pin = GPIO_NUM_NC;
+        pwm_channels[i].channel = static_cast<ledc_channel_t>(LEDC_CHANNEL_0 + i);
+        pwm_channels[i].frequency = 0;
+        pwm_channels[i].in_use = false;
+    }
+}
 
 // ========== Internal GPIO ISR Handler ==========
 
@@ -122,7 +137,7 @@ static ledc_channel_t find_free_pwm_channel(void)
             return (ledc_channel_t)i;
         }
     }
-    return -1;
+    return (ledc_channel_t)-1;
 }
 
 static int find_pwm_channel_by_pin(gpio_num_t pin)
@@ -413,6 +428,13 @@ esp_err_t ugpio_disable_interrupt(gpio_num_t pin)
 
 esp_err_t ugpio_pwm_start(gpio_num_t pin, uint32_t frequency, float duty_cycle)
 {
+    // Initialize PWM channels array on first use
+    if (!pwm_channels_initialized)
+    {
+        init_pwm_channels_array();
+        pwm_channels_initialized = true;
+    }
+
     if (!ugpio_is_valid(pin))
     {
         return ESP_ERR_INVALID_ARG;
@@ -443,12 +465,13 @@ esp_err_t ugpio_pwm_start(gpio_num_t pin, uint32_t frequency, float duty_cycle)
     // Configure timer (only once)
     if (!ledc_timer_configured)
     {
-        ledc_timer_config_t ledc_timer = {
-            .speed_mode = LEDC_MODE,
-            .timer_num = LEDC_TIMER,
-            .duty_resolution = LEDC_DUTY_RES,
-            .freq_hz = frequency,
-            .clk_cfg = LEDC_AUTO_CLK};
+        ledc_timer_config_t ledc_timer;
+        memset(&ledc_timer, 0, sizeof(ledc_timer_config_t));
+        ledc_timer.speed_mode = LEDC_MODE;
+        ledc_timer.duty_resolution = LEDC_DUTY_RES;
+        ledc_timer.timer_num = LEDC_TIMER;
+        ledc_timer.freq_hz = frequency;
+        ledc_timer.clk_cfg = LEDC_AUTO_CLK;
 
         esp_err_t ret = ledc_timer_config(&ledc_timer);
         if (ret != ESP_OK)
@@ -465,14 +488,15 @@ esp_err_t ugpio_pwm_start(gpio_num_t pin, uint32_t frequency, float duty_cycle)
     }
 
     // Configure channel
-    ledc_channel_config_t ledc_channel = {
-        .speed_mode = LEDC_MODE,
-        .channel = channel,
-        .timer_sel = LEDC_TIMER,
-        .intr_type = LEDC_INTR_DISABLE,
-        .gpio_num = pin,
-        .duty = (uint32_t)(duty_cycle / 100.0f * LEDC_MAX_DUTY),
-        .hpoint = 0};
+    ledc_channel_config_t ledc_channel;
+    memset(&ledc_channel, 0, sizeof(ledc_channel_config_t));
+    ledc_channel.gpio_num = pin;
+    ledc_channel.speed_mode = LEDC_MODE;
+    ledc_channel.channel = channel;
+    ledc_channel.intr_type = LEDC_INTR_DISABLE;
+    ledc_channel.timer_sel = LEDC_TIMER;
+    ledc_channel.duty = (uint32_t)(duty_cycle / 100.0f * LEDC_MAX_DUTY);
+    ledc_channel.hpoint = 0;
 
     esp_err_t ret = ledc_channel_config(&ledc_channel);
     if (ret != ESP_OK)

@@ -44,7 +44,12 @@ uflake_result_t uflake_event_publish(const char *event_name, event_type_t type,
     if (!event_name)
         return UFLAKE_ERROR_INVALID_PARAM;
 
-    uflake_event_t event = {0};
+    uflake_event_t event = {
+        .name = {0},
+        .type = EVENT_TYPE_SYSTEM,
+        .timestamp = 0,
+        .data_size = 0,
+        .data = {0}};
     strncpy(event.name, event_name, sizeof(event.name) - 1);
     event.name[sizeof(event.name) - 1] = '\0';
     event.type = type;

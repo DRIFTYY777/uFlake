@@ -29,7 +29,10 @@ typedef struct spi_device_node
 } spi_device_node_t;
 
 // Global SPI bus states (ESP32-S3 has 2 SPI hosts: SPI2 and SPI3)
-static uspi_bus_state_t uspi_buses[SOC_SPI_PERIPH_NUM] = {0};
+static uspi_bus_state_t uspi_buses[SOC_SPI_PERIPH_NUM] = {
+    [0] = {.host = SPI1_HOST, .is_initialized = false, .mutex = nullptr, .mosi_pin = GPIO_NUM_NC, .miso_pin = GPIO_NUM_NC, .sclk_pin = GPIO_NUM_NC, .max_transfer_size = 0, .device_count = 0, .device_list = nullptr},
+    [1] = {.host = SPI2_HOST, .is_initialized = false, .mutex = nullptr, .mosi_pin = GPIO_NUM_NC, .miso_pin = GPIO_NUM_NC, .sclk_pin = GPIO_NUM_NC, .max_transfer_size = 0, .device_count = 0, .device_list = nullptr},
+    [2] = {.host = SPI3_HOST, .is_initialized = false, .mutex = nullptr, .mosi_pin = GPIO_NUM_NC, .miso_pin = GPIO_NUM_NC, .sclk_pin = GPIO_NUM_NC, .max_transfer_size = 0, .device_count = 0, .device_list = nullptr}};
 
 // ============================================================================
 // PRIVATE HELPER FUNCTIONS
@@ -71,8 +74,8 @@ static esp_err_t add_device_to_list(uspi_bus_state_t *bus, spi_device_handle_t h
     bus->device_count++;
 
     UFLAKE_LOGI(TAG, "Added SPI device '%s' to host %d (total: %d)",
-             config->device_name ? config->device_name : "unnamed",
-             bus->host, bus->device_count);
+                config->device_name ? config->device_name : "unnamed",
+                bus->host, bus->device_count);
 
     return ESP_OK;
 }
@@ -96,8 +99,8 @@ static esp_err_t remove_device_from_list(uspi_bus_state_t *bus, spi_device_handl
             }
 
             UFLAKE_LOGI(TAG, "Removed SPI device '%s' from host %d",
-                     current->config.device_name ? current->config.device_name : "unnamed",
-                     bus->host);
+                        current->config.device_name ? current->config.device_name : "unnamed",
+                        bus->host);
 
             uflake_free(current);
             bus->device_count--;
@@ -137,15 +140,20 @@ uflake_result_t uspi_bus_init(spi_host_device_t host, gpio_num_t mosi, gpio_num_
     }
 
     // Configure SPI bus
-    spi_bus_config_t bus_config = {
-        .mosi_io_num = mosi,
-        .miso_io_num = miso,
-        .sclk_io_num = sclk,
-        .quadwp_io_num = -1,
-        .quadhd_io_num = -1,
-        .max_transfer_sz = max_transfer_sz > 0 ? max_transfer_sz : USPI_MAX_TRANSFER_SIZE,
-        .flags = SPICOMMON_BUSFLAG_MASTER,
-        .intr_flags = 0};
+    spi_bus_config_t bus_config;
+    memset(&bus_config, 0, sizeof(spi_bus_config_t));
+    bus_config.mosi_io_num = mosi;
+    bus_config.miso_io_num = miso;
+    bus_config.sclk_io_num = sclk;
+    bus_config.quadwp_io_num = -1;
+    bus_config.quadhd_io_num = -1;
+    bus_config.data4_io_num = -1;
+    bus_config.data5_io_num = -1;
+    bus_config.data6_io_num = -1;
+    bus_config.data7_io_num = -1;
+    bus_config.max_transfer_sz = max_transfer_sz > 0 ? max_transfer_sz : USPI_MAX_TRANSFER_SIZE;
+    bus_config.flags = SPICOMMON_BUSFLAG_MASTER;
+    bus_config.isr_cpu_id = ESP_INTR_CPU_AFFINITY_AUTO;
 
     esp_err_t ret = spi_bus_initialize(host, &bus_config, SPI_DMA_CH_AUTO);
     if (ret != ESP_OK)
@@ -166,7 +174,7 @@ uflake_result_t uspi_bus_init(spi_host_device_t host, gpio_num_t mosi, gpio_num_
     uspi_buses[host].device_list = NULL;
 
     UFLAKE_LOGI(TAG, "SPI host %d initialized: MOSI=%d, MISO=%d, SCLK=%d, Max=%d bytes",
-             host, mosi, miso, sclk, bus_config.max_transfer_sz);
+                host, mosi, miso, sclk, bus_config.max_transfer_sz);
 
     return UFLAKE_OK;
 }
@@ -220,24 +228,22 @@ esp_err_t uspi_device_add(spi_host_device_t host, const uspi_device_config_t *de
     if (uspi_buses[host].device_count >= USPI_MAX_DEVICES_PER_BUS)
     {
         UFLAKE_LOGE(TAG, "Maximum devices (%d) reached on host %d",
-                 USPI_MAX_DEVICES_PER_BUS, host);
+                    USPI_MAX_DEVICES_PER_BUS, host);
         return ESP_ERR_NO_MEM;
     }
 
     uflake_mutex_lock(uspi_buses[host].mutex, UINT32_MAX);
 
     // Configure SPI device
-    spi_device_interface_config_t devcfg = {
-        .command_bits = dev_config->command_bits,
-        .address_bits = dev_config->address_bits,
-        .dummy_bits = dev_config->dummy_bits,
-        .mode = dev_config->mode,
-        .clock_speed_hz = dev_config->clock_speed_hz,
-        .spics_io_num = dev_config->cs_pin,
-        .queue_size = dev_config->queue_size > 0 ? dev_config->queue_size : 7,
-        .flags = 0,
-        .pre_cb = NULL,
-        .post_cb = NULL};
+    spi_device_interface_config_t devcfg;
+    memset(&devcfg, 0, sizeof(spi_device_interface_config_t));
+    devcfg.mode = dev_config->mode;
+    devcfg.clock_speed_hz = (int)dev_config->clock_speed_hz;
+    devcfg.spics_io_num = dev_config->cs_pin;
+    devcfg.queue_size = dev_config->queue_size > 0 ? dev_config->queue_size : 7;
+    devcfg.command_bits = dev_config->command_bits;
+    devcfg.address_bits = dev_config->address_bits;
+    devcfg.dummy_bits = dev_config->dummy_bits;
 
     if (dev_config->cs_ena_pretrans)
     {
@@ -314,10 +320,10 @@ esp_err_t uspi_transmit(spi_device_handle_t handle, const uint8_t *tx_buffer,
         return ESP_ERR_INVALID_ARG;
     }
 
-    spi_transaction_t trans = {
-        .length = length * 8, // Length in bits
-        .tx_buffer = tx_buffer,
-        .rx_buffer = NULL};
+    spi_transaction_t trans;
+    memset(&trans, 0, sizeof(spi_transaction_t));
+    trans.length = length * 8; // Length in bits
+    trans.tx_buffer = tx_buffer;
 
     esp_err_t ret = spi_device_transmit(handle, &trans);
 
@@ -337,11 +343,11 @@ esp_err_t uspi_receive(spi_device_handle_t handle, uint8_t *rx_buffer,
         return ESP_ERR_INVALID_ARG;
     }
 
-    spi_transaction_t trans = {
-        .length = length * 8,
-        .rxlength = length * 8,
-        .tx_buffer = NULL,
-        .rx_buffer = rx_buffer};
+    spi_transaction_t trans;
+    memset(&trans, 0, sizeof(spi_transaction_t));
+    trans.length = length * 8;
+    trans.rxlength = length * 8;
+    trans.rx_buffer = rx_buffer;
 
     esp_err_t ret = spi_device_transmit(handle, &trans);
 
@@ -361,11 +367,12 @@ esp_err_t uspi_transfer(spi_device_handle_t handle, const uint8_t *tx_buffer,
         return ESP_ERR_INVALID_ARG;
     }
 
-    spi_transaction_t trans = {
-        .length = length * 8,
-        .rxlength = length * 8,
-        .tx_buffer = tx_buffer,
-        .rx_buffer = rx_buffer};
+    spi_transaction_t trans;
+    memset(&trans, 0, sizeof(spi_transaction_t));
+    trans.length = length * 8;
+    trans.rxlength = length * 8;
+    trans.tx_buffer = tx_buffer;
+    trans.rx_buffer = rx_buffer;
 
     esp_err_t ret = spi_device_transmit(handle, &trans);
 
@@ -398,10 +405,10 @@ esp_err_t uspi_write_cmd(spi_device_handle_t handle, uint8_t cmd)
         return ESP_ERR_INVALID_ARG;
     }
 
-    spi_transaction_t trans = {
-        .flags = SPI_TRANS_USE_TXDATA,
-        .cmd = cmd,
-        .length = 0};
+    spi_transaction_t trans;
+    memset(&trans, 0, sizeof(spi_transaction_t));
+    trans.flags = SPI_TRANS_USE_TXDATA;
+    trans.cmd = cmd;
 
     return spi_device_transmit(handle, &trans);
 }
@@ -414,10 +421,11 @@ esp_err_t uspi_write_cmd_data(spi_device_handle_t handle, uint8_t cmd,
         return ESP_ERR_INVALID_ARG;
     }
 
-    spi_transaction_t trans = {
-        .cmd = cmd,
-        .length = len * 8,
-        .tx_buffer = data};
+    spi_transaction_t trans;
+    memset(&trans, 0, sizeof(spi_transaction_t));
+    trans.cmd = cmd;
+    trans.length = len * 8;
+    trans.tx_buffer = data;
 
     return spi_device_transmit(handle, &trans);
 }
@@ -430,11 +438,12 @@ esp_err_t uspi_write_cmd_addr_data(spi_device_handle_t handle, uint8_t cmd,
         return ESP_ERR_INVALID_ARG;
     }
 
-    spi_transaction_t trans = {
-        .cmd = cmd,
-        .addr = addr,
-        .length = len * 8,
-        .tx_buffer = data};
+    spi_transaction_t trans;
+    memset(&trans, 0, sizeof(spi_transaction_t));
+    trans.cmd = cmd;
+    trans.addr = addr;
+    trans.length = len * 8;
+    trans.tx_buffer = data;
 
     return spi_device_transmit(handle, &trans);
 }
@@ -451,10 +460,10 @@ esp_err_t uspi_transmit_dma(spi_device_handle_t handle, const uint8_t *tx_buffer
         return ESP_ERR_INVALID_ARG;
     }
 
-    spi_transaction_t trans = {
-        .length = length * 8,
-        .tx_buffer = tx_buffer,
-        .rx_buffer = NULL};
+    spi_transaction_t trans;
+    memset(&trans, 0, sizeof(spi_transaction_t));
+    trans.length = length * 8;
+    trans.tx_buffer = tx_buffer;
 
     return spi_device_transmit(handle, &trans);
 }
@@ -467,11 +476,12 @@ esp_err_t uspi_transfer_dma(spi_device_handle_t handle, const uint8_t *tx_buffer
         return ESP_ERR_INVALID_ARG;
     }
 
-    spi_transaction_t trans = {
-        .length = length * 8,
-        .rxlength = length * 8,
-        .tx_buffer = tx_buffer,
-        .rx_buffer = rx_buffer};
+    spi_transaction_t trans;
+    memset(&trans, 0, sizeof(spi_transaction_t));
+    trans.length = length * 8;
+    trans.rxlength = length * 8;
+    trans.tx_buffer = tx_buffer;
+    trans.rx_buffer = rx_buffer;
 
     return spi_device_transmit(handle, &trans);
 }
@@ -488,10 +498,11 @@ esp_err_t uspi_polling_transmit(spi_device_handle_t handle, const uint8_t *tx_bu
         return ESP_ERR_INVALID_ARG;
     }
 
-    spi_transaction_t trans = {
-        .flags = SPI_TRANS_USE_TXDATA,
-        .length = length * 8,
-        .tx_buffer = tx_buffer};
+    spi_transaction_t trans;
+    memset(&trans, 0, sizeof(spi_transaction_t));
+    trans.flags = SPI_TRANS_USE_TXDATA;
+    trans.length = length * 8;
+    trans.tx_buffer = tx_buffer;
 
     return spi_device_polling_transmit(handle, &trans);
 }
@@ -504,11 +515,12 @@ esp_err_t uspi_polling_transfer(spi_device_handle_t handle, const uint8_t *tx_bu
         return ESP_ERR_INVALID_ARG;
     }
 
-    spi_transaction_t trans = {
-        .length = length * 8,
-        .rxlength = length * 8,
-        .tx_buffer = tx_buffer,
-        .rx_buffer = rx_buffer};
+    spi_transaction_t trans;
+    memset(&trans, 0, sizeof(spi_transaction_t));
+    trans.length = length * 8;
+    trans.rxlength = length * 8;
+    trans.tx_buffer = tx_buffer;
+    trans.rx_buffer = rx_buffer;
 
     return spi_device_polling_transmit(handle, &trans);
 }

@@ -258,7 +258,7 @@ uflake_result_t uflake_efuse_read_custom_field(uint32_t block_num, uint8_t *data
     if (!data)
         return UFLAKE_ERROR_INVALID_PARAM;
 
-    esp_err_t err = esp_efuse_read_block(block_num, data, 0, len * 8);
+    esp_err_t err = esp_efuse_read_block((esp_efuse_block_t)block_num, data, 0, len * 8);
     if (err != ESP_OK)
     {
         ESP_LOGE(TAG, "Failed to read eFuse block %lu: %s", block_num, esp_err_to_name(err));

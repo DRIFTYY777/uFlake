@@ -5,28 +5,31 @@
 #include "appService.h"
 
 static const char *TAG = "INPUT";
-static InputService g_input = {0};
+static InputService g_input;
 
 // Register as a service (no task assigned)
 // Non-static so it can be externally registered (like apps)
 
-service_manifest_t input_manifest = {
-    .name = "input_service",
-    .version = "1.0",
-    .type = SERVICE_TYPE_INPUT,
-    .stack_size = 0, // No task
-    .priority = 0,   // No task
-    .auto_start = false,
-    .critical = false,
-    .dependencies = {0}};
+extern "C"
+{
+    service_manifest_t input_manifest = {
+        .name = "input_service",
+        .version = "1.0",
+        .type = SERVICE_TYPE_INPUT,
+        .stack_size = 0, // No task
+        .priority = 0,   // No task
+        .auto_start = false,
+        .critical = false,
+        .dependencies = {0}};
 
-const service_bundle_t input_bundle = {
-    .manifest = &input_manifest,
-    .init = input_init,
-    .start = NULL, // No task
-    .stop = NULL,  // No task
-    .deinit = input_deinit,
-    .context = NULL};
+    const service_bundle_t input_bundle = {
+        .manifest = &input_manifest,
+        .init = input_init,
+        .start = NULL, // No task
+        .stop = NULL,  // No task
+        .deinit = input_deinit,
+        .context = NULL};
+}
 
 // Simple function to get current time in milliseconds
 static uint32_t get_time_ms(void)

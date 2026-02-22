@@ -16,8 +16,8 @@ message(STATUS "uFlake: APP_COMPONENTS = ${APP_COMPONENTS}")
 
 idf_component_register(
     SRCS 
-        "uFlakeAppReg.c"
-        "uFlakeCore.c"
+        "uFlakeAppReg.cpp"
+        "uFlakeCore.cpp"
 
     INCLUDE_DIRS 
         "."

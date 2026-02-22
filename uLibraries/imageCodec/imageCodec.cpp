@@ -24,7 +24,7 @@ static const char *TAG = "IMG_CODEC";
 
 /* Memory allocation helpers from esp_new_jpeg */
 #define jpeg_malloc malloc
-#define jpeg_calloc_align(size, align) heap_caps_aligned_alloc(align, size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT)
+#define jpeg_calloc_align(size, align) static_cast<uint8_t *>(heap_caps_aligned_alloc(align, size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT))
 #define jpeg_free_align(ptr) heap_caps_free(ptr)
 
 /* ============================================================================
@@ -63,6 +63,8 @@ static bool decode_jpeg(const img_reader_t *r,
     jpeg_dec_header_info_t *out_info = NULL;
     uint8_t *jpg_buf = NULL;
     uint8_t *out_buf = NULL;
+    jpeg_dec_config_t config;
+    int out_len = 0;
 
     size_t jpg_size = r->size(r->user_ctx);
     UFLAKE_LOGI(TAG, "Allocating %zu bytes for JPEG input", jpg_size);
@@ -86,7 +88,7 @@ static bool decode_jpeg(const img_reader_t *r,
     }
 
     /* Configure decoder */
-    jpeg_dec_config_t config = DEFAULT_JPEG_DEC_CONFIG();
+    config = DEFAULT_JPEG_DEC_CONFIG();
     config.output_type = JPEG_PIXEL_FORMAT_RGB565_BE;
     config.rotate = JPEG_ROTATE_0D;
 
@@ -113,38 +115,43 @@ static bool decode_jpeg(const img_reader_t *r,
     /* Apply HW scaling if requested */
     if (opts && opts->scale != IMG_SCALE_NONE)
     {
-        // Get image dimensions first to calculate scale
-        jpeg_dec_handle_t temp_dec = NULL;
-        jpeg_dec_io_t temp_io = {0};
-        jpeg_dec_header_info_t temp_info = {0};
-
-        jpeg_dec_config_t temp_cfg = DEFAULT_JPEG_DEC_CONFIG();
-        if (jpeg_dec_open(&temp_cfg, &temp_dec) == JPEG_ERR_OK)
         {
-            temp_io.inbuf = jpg_buf;
-            temp_io.inbuf_len = jpg_size;
+            // Get image dimensions first to calculate scale
+            jpeg_dec_handle_t temp_dec = NULL;
+            jpeg_dec_io_t temp_io;
+            jpeg_dec_header_info_t temp_info;
+            jpeg_dec_config_t temp_cfg;
+            memset(&temp_io, 0, sizeof(jpeg_dec_io_t));
+            memset(&temp_info, 0, sizeof(jpeg_dec_header_info_t));
 
-            if (jpeg_dec_parse_header(temp_dec, &temp_io, &temp_info) == JPEG_ERR_OK)
+            temp_cfg = DEFAULT_JPEG_DEC_CONFIG();
+            if (jpeg_dec_open(&temp_cfg, &temp_dec) == JPEG_ERR_OK)
             {
-                switch (opts->scale)
+                temp_io.inbuf = jpg_buf;
+                temp_io.inbuf_len = jpg_size;
+
+                if (jpeg_dec_parse_header(temp_dec, &temp_io, &temp_info) == JPEG_ERR_OK)
                 {
-                case IMG_SCALE_1_2:
-                    config.scale.width = temp_info.width / 2;
-                    config.scale.height = temp_info.height / 2;
-                    break;
-                case IMG_SCALE_1_4:
-                    config.scale.width = temp_info.width / 4;
-                    config.scale.height = temp_info.height / 4;
-                    break;
-                case IMG_SCALE_1_8:
-                    config.scale.width = temp_info.width / 8;
-                    config.scale.height = temp_info.height / 8;
-                    break;
-                default:
-                    break;
+                    switch (opts->scale)
+                    {
+                    case IMG_SCALE_1_2:
+                        config.scale.width = temp_info.width / 2;
+                        config.scale.height = temp_info.height / 2;
+                        break;
+                    case IMG_SCALE_1_4:
+                        config.scale.width = temp_info.width / 4;
+                        config.scale.height = temp_info.height / 4;
+                        break;
+                    case IMG_SCALE_1_8:
+                        config.scale.width = temp_info.width / 8;
+                        config.scale.height = temp_info.height / 8;
+                        break;
+                    default:
+                        break;
+                    }
                 }
+                jpeg_dec_close(temp_dec);
             }
-            jpeg_dec_close(temp_dec);
         }
     }
 
@@ -158,7 +165,7 @@ static bool decode_jpeg(const img_reader_t *r,
     }
 
     /* Allocate IO structure */
-    jpeg_io = calloc(1, sizeof(jpeg_dec_io_t));
+    jpeg_io = static_cast<jpeg_dec_io_t *>(calloc(1, sizeof(jpeg_dec_io_t)));
     if (!jpeg_io)
     {
         UFLAKE_LOGE(TAG, "Failed to allocate IO structure");
@@ -167,7 +174,7 @@ static bool decode_jpeg(const img_reader_t *r,
     }
 
     /* Allocate output info structure */
-    out_info = calloc(1, sizeof(jpeg_dec_header_info_t));
+    out_info = static_cast<jpeg_dec_header_info_t *>(calloc(1, sizeof(jpeg_dec_header_info_t)));
     if (!out_info)
     {
         UFLAKE_LOGE(TAG, "Failed to allocate output info");
@@ -188,13 +195,13 @@ static bool decode_jpeg(const img_reader_t *r,
     }
 
     /* Calculate output size (RGB565 = 2 bytes per pixel) */
-    int out_len = out_info->width * out_info->height * 2;
+    out_len = out_info->width * out_info->height * 2;
 
     /* Allocate output buffer (aligned for DMA) */
     out_buf = jpeg_calloc_align(out_len, 16);
     if (!out_buf)
     {
-        out_buf = malloc(out_len);
+        out_buf = static_cast<uint8_t *>(malloc(out_len));
     }
 
     if (!out_buf)
@@ -215,12 +222,14 @@ static bool decode_jpeg(const img_reader_t *r,
     }
 
     /* Convert from big-endian (BE) to little-endian (LE) RGB565 for LVGL/ST7789 */
-    uint16_t *pixels_u16 = (uint16_t *)out_buf;
-    size_t pixel_count = out_info->width * out_info->height;
-    for (size_t i = 0; i < pixel_count; i++)
     {
-        uint16_t pixel = pixels_u16[i];
-        pixels_u16[i] = (pixel >> 8) | (pixel << 8); // Swap bytes
+        uint16_t *pixels_u16 = (uint16_t *)out_buf;
+        size_t pixel_count = out_info->width * out_info->height;
+        for (size_t i = 0; i < pixel_count; i++)
+        {
+            uint16_t pixel = pixels_u16[i];
+            pixels_u16[i] = (pixel >> 8) | (pixel << 8); // Swap bytes
+        }
     }
 
     /* Fill output structure */
@@ -232,6 +241,7 @@ static bool decode_jpeg(const img_reader_t *r,
 
     /* Success - don't free out_buf */
     out_buf = NULL;
+    ret = JPEG_ERR_OK;
 
 cleanup:
     jpeg_dec_close(jpeg_dec);
@@ -280,10 +290,10 @@ static bool resize_rgb565(img_rgb565_t *img, uint16_t new_w, uint16_t new_h)
     if (img->width == new_w && img->height == new_h)
         return true;
 
-    uint8_t *dst = heap_caps_malloc(new_w * new_h * 2,
-                                    MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    uint8_t *dst = static_cast<uint8_t *>(heap_caps_malloc(new_w * new_h * 2,
+                                                           MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
     if (!dst)
-        dst = malloc(new_w * new_h * 2);
+        dst = static_cast<uint8_t *>(malloc(new_w * new_h * 2));
 
     if (!dst)
     {
@@ -333,10 +343,10 @@ static bool rotate_rgb565_sw(img_rgb565_t *img, img_rotate_t rot)
         new_h = img->width;
     }
 
-    uint8_t *dst = heap_caps_malloc(new_w * new_h * 2,
-                                    MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    uint8_t *dst = static_cast<uint8_t *>(heap_caps_malloc(new_w * new_h * 2,
+                                                           MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
     if (!dst)
-        dst = malloc(new_w * new_h * 2);
+        dst = static_cast<uint8_t *>(malloc(new_w * new_h * 2));
 
     if (!dst)
     {
@@ -431,7 +441,7 @@ bool img_encode_jpeg_ex(const img_rgb565_t *img,
     }
 
     /* Allocate output buffer */
-    outbuf = calloc(1, outbuf_size);
+    outbuf = static_cast<uint8_t *>(calloc(1, outbuf_size));
     if (!outbuf)
     {
         UFLAKE_LOGE(TAG, "Failed to allocate encode buffer");
@@ -478,7 +488,9 @@ bool img_encode_jpeg(const img_rgb565_t *img,
                      const char *path,
                      const img_writer_t *writer)
 {
-    img_encode_opts_t opts = {.quality = 85};
+    img_encode_opts_t opts;
+    memset(&opts, 0, sizeof(img_encode_opts_t));
+    opts.quality = 85;
     return img_encode_jpeg_ex(img, path, writer, &opts);
 }
 
@@ -678,7 +690,7 @@ bool img_get_info(const char *path,
     }
 
     size_t file_size = reader->size(reader->user_ctx);
-    uint8_t *buf = malloc(file_size);
+    uint8_t *buf = static_cast<uint8_t *>(malloc(file_size));
     if (!buf)
     {
         reader->close(reader->user_ctx);
@@ -692,8 +704,10 @@ bool img_get_info(const char *path,
     /* Parse header only */
     jpeg_dec_config_t config = DEFAULT_JPEG_DEC_CONFIG();
     jpeg_dec_handle_t jpeg_dec = NULL;
-    jpeg_dec_io_t jpeg_io = {0};
-    jpeg_dec_header_info_t out_info = {0};
+    jpeg_dec_io_t jpeg_io;
+    jpeg_dec_header_info_t out_info;
+    memset(&jpeg_io, 0, sizeof(jpeg_dec_io_t));
+    memset(&out_info, 0, sizeof(jpeg_dec_header_info_t));
 
     jpeg_error_t ret = jpeg_dec_open(&config, &jpeg_dec);
     if (ret == JPEG_ERR_OK)

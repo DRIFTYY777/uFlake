@@ -7,7 +7,13 @@
 #include "rom/ets_sys.h"
 
 static const char *TAG = "KERNEL";
-static uflake_kernel_t g_kernel = {0};
+static uflake_kernel_t g_kernel = {
+    .state = KERNEL_STATE_UNINITIALIZED,
+    .tick_count = 0,
+    .current_process = NULL,
+    .kernel_task = NULL,
+    .kernel_mutex = NULL,
+};
 
 // Hardware timer interrupt handler
 void vApplicationTickHook(void)

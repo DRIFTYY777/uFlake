@@ -18,7 +18,7 @@ NRF24_t *_nrf24_dev = NULL;
 bool Nrf24_init(NRF24_t *dev)
 {
     uspi_device_config_t dev_cfg = {
-        .cs_pin = dev->csnPin,
+        .cs_pin = (uint8_t)dev->csnPin,
         .clock_speed_hz = dev->frequency,
         .mode = USPI_MODE_0,
         .queue_size = 1,

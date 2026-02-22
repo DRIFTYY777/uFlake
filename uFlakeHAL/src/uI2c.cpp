@@ -26,7 +26,10 @@ typedef struct i2c_device_node
 } i2c_device_node_t;
 
 // Global I2C bus configurations (ESP32-S3 has 2 I2C ports)
-static i2c_bus_config_t u_i2c_buses[I2C_NUM_MAX] = {0};
+static i2c_bus_config_t u_i2c_buses[I2C_NUM_MAX] = {
+    [0] = {.port = I2C_NUM_0, .sda_pin = GPIO_NUM_NC, .scl_pin = GPIO_NUM_NC, .freq_hz = 0, .is_initialized = false, .mutex = nullptr, .bus_handle = nullptr, .device_list = nullptr},
+    [1] = {.port = I2C_NUM_1, .sda_pin = GPIO_NUM_NC, .scl_pin = GPIO_NUM_NC, .freq_hz = 0, .is_initialized = false, .mutex = nullptr, .bus_handle = nullptr, .device_list = nullptr}
+};
 
 // ============================================================================
 // PRIVATE HELPER FUNCTIONS
@@ -69,11 +72,11 @@ static esp_err_t add_device_to_list(i2c_bus_config_t *bus, uint8_t device_addr)
     }
 
     // New API: Create device handle
-    i2c_device_config_t dev_cfg = {
-        .dev_addr_length = I2C_ADDR_BIT_LEN_7,
-        .device_address = device_addr,
-        .scl_speed_hz = bus->freq_hz,
-    };
+    i2c_device_config_t dev_cfg;
+    memset(&dev_cfg, 0, sizeof(i2c_device_config_t));
+    dev_cfg.dev_addr_length = I2C_ADDR_BIT_LEN_7;
+    dev_cfg.device_address = device_addr;
+    dev_cfg.scl_speed_hz = bus->freq_hz;
 
     esp_err_t ret = i2c_master_bus_add_device(bus->bus_handle, &dev_cfg, &node->dev_handle);
     if (ret != ESP_OK)
@@ -157,17 +160,14 @@ uflake_result_t i2c_bus_manager_init(i2c_port_t port, gpio_num_t sda_pin, gpio_n
     }
 
     //  New API: Configure master bus
-    i2c_master_bus_config_t bus_config = {
-        .i2c_port = port,
-        .sda_io_num = sda_pin,
-        .scl_io_num = scl_pin,
-        .clk_source = I2C_CLK_SRC_DEFAULT,
-        .glitch_ignore_cnt = 7,
-        .intr_priority = 0, //  Auto-select priority
-        .flags = {
-            .enable_internal_pullup = true,
-        },
-    };
+    i2c_master_bus_config_t bus_config;
+    memset(&bus_config, 0, sizeof(i2c_master_bus_config_t));
+    bus_config.i2c_port = port;
+    bus_config.sda_io_num = sda_pin;
+    bus_config.scl_io_num = scl_pin;
+    bus_config.clk_source = I2C_CLK_SRC_DEFAULT;
+    bus_config.glitch_ignore_cnt = 7;
+    bus_config.flags.enable_internal_pullup = true;
 
     //  New API: Create bus
     esp_err_t err = i2c_new_master_bus(&bus_config, &u_i2c_buses[port].bus_handle);

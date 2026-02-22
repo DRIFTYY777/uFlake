@@ -1,13 +1,13 @@
 idf_component_register(
     SRCS 
-        "uHal.c"
-        "src/uGPIO.c"
-        "src/uI2c.c"
-        "src/uSPI.c"
-        "src/uNVS.c" 
-        "src/uUART.c"
-        "src/uGPIO.c"
-        "src/uADC.c"
+        "uHal.cpp"
+        "src/uGPIO.cpp"
+        "src/uI2c.cpp"
+        "src/uSPI.cpp"
+        "src/uNVS.cpp" 
+        "src/uUART.cpp"
+        "src/uGPIO.cpp"
+        "src/uADC.cpp"
     
     INCLUDE_DIRS 
         "."

@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "kernel.h"
+#include "appService.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -60,6 +61,9 @@ extern "C"
     // Check current key states
     bool input_is_key_pressed(InputKey key);
     uint32_t input_get_press_duration(InputKey key);
+
+    // Service bundle for registration
+    extern const service_bundle_t input_bundle;
 
 #ifdef __cplusplus
 }
