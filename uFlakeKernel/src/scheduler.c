@@ -142,7 +142,11 @@ void uflake_scheduler_tick(void)
 
 uflake_result_t uflake_process_terminate(uint32_t pid)
 {
-    xSemaphoreTake(scheduler_mutex, portMAX_DELAY);
+    if (xSemaphoreTake(scheduler_mutex, pdMS_TO_TICKS(100)) != pdTRUE)
+    {
+        ESP_LOGW(TAG, "Terminate timeout for PID: %d", (int)pid);
+        return UFLAKE_ERROR_TIMEOUT;
+    }
 
     uflake_process_t *current = process_list;
     uflake_process_t *prev = NULL;
@@ -182,7 +186,11 @@ uflake_result_t uflake_process_terminate(uint32_t pid)
 
 uflake_result_t uflake_process_suspend(uint32_t pid)
 {
-    xSemaphoreTake(scheduler_mutex, portMAX_DELAY);
+    if (xSemaphoreTake(scheduler_mutex, pdMS_TO_TICKS(100)) != pdTRUE)
+    {
+        ESP_LOGW(TAG, "Suspend timeout for PID: %d", (int)pid);
+        return UFLAKE_ERROR_TIMEOUT;
+    }
 
     uflake_process_t *current = process_list;
     while (current)
@@ -216,7 +224,11 @@ uflake_result_t uflake_process_suspend(uint32_t pid)
 
 uflake_result_t uflake_process_resume(uint32_t pid)
 {
-    xSemaphoreTake(scheduler_mutex, portMAX_DELAY);
+    if (xSemaphoreTake(scheduler_mutex, pdMS_TO_TICKS(100)) != pdTRUE)
+    {
+        ESP_LOGW(TAG, "Resume timeout for PID: %d", (int)pid);
+        return UFLAKE_ERROR_TIMEOUT;
+    }
 
     uflake_process_t *current = process_list;
     while (current)
@@ -252,7 +264,11 @@ uflake_process_t *uflake_process_get_current(void)
 {
     TaskHandle_t current_task = xTaskGetCurrentTaskHandle();
 
-    xSemaphoreTake(scheduler_mutex, portMAX_DELAY);
+    if (xSemaphoreTake(scheduler_mutex, pdMS_TO_TICKS(50)) != pdTRUE)
+    {
+        ESP_LOGW(TAG, "get_current timeout");
+        return NULL;
+    }
 
     uflake_process_t *current = process_list;
     while (current)

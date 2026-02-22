@@ -4,6 +4,7 @@
  */
 
 #include "uGui_focus.h"
+#include "gui_input.h"
 #include "logger.h"
 #include <string.h>
 
@@ -15,10 +16,11 @@ static const char *TAG = "uGUI_Focus";
 
 #define MAX_FOCUS_CONTEXTS 16
 
-typedef struct {
+typedef struct
+{
     bool initialized;
     ugui_focus_ctx_t contexts[MAX_FOCUS_CONTEXTS];
-    lv_group_t *focus_groups[5];  // One per layer
+    lv_group_t *focus_groups[5]; // One per layer
     uflake_mutex_t *mutex;
     ugui_layer_t active_layer;
     uint32_t registered_count;
@@ -30,34 +32,45 @@ static focus_manager_t g_focus_mgr = {0};
 // INTERNAL HELPERS
 // ============================================================================
 
-static inline bool is_valid_layer(ugui_layer_t layer) {
+static inline bool is_valid_layer(ugui_layer_t layer)
+{
     return layer >= UGUI_LAYER_BACKGROUND && layer <= UGUI_LAYER_SYSTEM;
 }
 
-static ugui_focus_ctx_t *find_context_by_obj(lv_obj_t *obj) {
-    for (int i = 0; i < MAX_FOCUS_CONTEXTS; i++) {
-        if (g_focus_mgr.contexts[i].focused_obj == obj) {
+static ugui_focus_ctx_t *find_context_by_obj(lv_obj_t *obj)
+{
+    for (int i = 0; i < MAX_FOCUS_CONTEXTS; i++)
+    {
+        if (g_focus_mgr.contexts[i].focused_obj == obj)
+        {
             return &g_focus_mgr.contexts[i];
         }
     }
     return NULL;
 }
 
-static ugui_focus_ctx_t *find_free_context(void) {
-    for (int i = 0; i < MAX_FOCUS_CONTEXTS; i++) {
-        if (g_focus_mgr.contexts[i].focused_obj == NULL) {
+static ugui_focus_ctx_t *find_free_context(void)
+{
+    for (int i = 0; i < MAX_FOCUS_CONTEXTS; i++)
+    {
+        if (g_focus_mgr.contexts[i].focused_obj == NULL)
+        {
             return &g_focus_mgr.contexts[i];
         }
     }
     return NULL;
 }
 
-static ugui_layer_t find_highest_active_layer(void) {
+static ugui_layer_t find_highest_active_layer(void)
+{
     // Find highest layer with registered objects
-    for (int layer = UGUI_LAYER_SYSTEM; layer >= UGUI_LAYER_BACKGROUND; layer--) {
-        for (int i = 0; i < MAX_FOCUS_CONTEXTS; i++) {
-            if (g_focus_mgr.contexts[i].focused_obj != NULL && 
-                g_focus_mgr.contexts[i].layer == layer) {
+    for (int layer = UGUI_LAYER_SYSTEM; layer >= UGUI_LAYER_BACKGROUND; layer--)
+    {
+        for (int i = 0; i < MAX_FOCUS_CONTEXTS; i++)
+        {
+            if (g_focus_mgr.contexts[i].focused_obj != NULL &&
+                g_focus_mgr.contexts[i].layer == layer)
+            {
                 return (ugui_layer_t)layer;
             }
         }
@@ -65,12 +78,24 @@ static ugui_layer_t find_highest_active_layer(void) {
     return UGUI_LAYER_BACKGROUND;
 }
 
+static void update_input_group(void)
+{
+    lv_indev_t *keypad = keypad_get_indev();
+    if (keypad && g_focus_mgr.focus_groups[g_focus_mgr.active_layer])
+    {
+        lv_indev_set_group(keypad, g_focus_mgr.focus_groups[g_focus_mgr.active_layer]);
+        UFLAKE_LOGI(TAG, "Keypad assigned to layer %d group", g_focus_mgr.active_layer);
+    }
+}
+
 // ============================================================================
 // INITIALIZATION
 // ============================================================================
 
-uflake_result_t ugui_focus_init(void) {
-    if (g_focus_mgr.initialized) {
+uflake_result_t ugui_focus_init(void)
+{
+    if (g_focus_mgr.initialized)
+    {
         UFLAKE_LOGW(TAG, "Focus manager already initialized");
         return UFLAKE_OK;
     }
@@ -78,15 +103,18 @@ uflake_result_t ugui_focus_init(void) {
     memset(&g_focus_mgr, 0, sizeof(focus_manager_t));
 
     // Create mutex for thread safety
-    if (uflake_mutex_create(&g_focus_mgr.mutex) != UFLAKE_OK) {
+    if (uflake_mutex_create(&g_focus_mgr.mutex) != UFLAKE_OK)
+    {
         UFLAKE_LOGE(TAG, "Failed to create focus mutex");
         return UFLAKE_ERROR;
     }
 
     // Create LVGL input groups for each layer
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 5; i++)
+    {
         g_focus_mgr.focus_groups[i] = lv_group_create();
-        if (!g_focus_mgr.focus_groups[i]) {
+        if (!g_focus_mgr.focus_groups[i])
+        {
             UFLAKE_LOGE(TAG, "Failed to create focus group for layer %d", i);
             return UFLAKE_ERROR;
         }
@@ -94,6 +122,9 @@ uflake_result_t ugui_focus_init(void) {
 
     g_focus_mgr.active_layer = UGUI_LAYER_BACKGROUND;
     g_focus_mgr.initialized = true;
+
+    // Assign keypad input device to the active group
+    update_input_group();
 
     UFLAKE_LOGI(TAG, "Focus manager initialized");
     return UFLAKE_OK;
@@ -103,8 +134,10 @@ uflake_result_t ugui_focus_init(void) {
 // FOCUS REGISTRATION & MANAGEMENT
 // ============================================================================
 
-ugui_focus_ctx_t *ugui_focus_register(lv_obj_t *obj, ugui_layer_t layer, bool auto_focus) {
-    if (!g_focus_mgr.initialized || !obj || !is_valid_layer(layer)) {
+ugui_focus_ctx_t *ugui_focus_register(lv_obj_t *obj, ugui_layer_t layer, bool auto_focus)
+{
+    if (!g_focus_mgr.initialized || !obj || !is_valid_layer(layer))
+    {
         UFLAKE_LOGE(TAG, "Invalid focus registration parameters");
         return NULL;
     }
@@ -113,7 +146,8 @@ ugui_focus_ctx_t *ugui_focus_register(lv_obj_t *obj, ugui_layer_t layer, bool au
 
     // Check if already registered
     ugui_focus_ctx_t *existing = find_context_by_obj(obj);
-    if (existing) {
+    if (existing)
+    {
         UFLAKE_LOGW(TAG, "Object already registered");
         uflake_mutex_unlock(g_focus_mgr.mutex);
         return existing;
@@ -121,7 +155,8 @@ ugui_focus_ctx_t *ugui_focus_register(lv_obj_t *obj, ugui_layer_t layer, bool au
 
     // Find free context
     ugui_focus_ctx_t *ctx = find_free_context();
-    if (!ctx) {
+    if (!ctx)
+    {
         UFLAKE_LOGE(TAG, "No free focus contexts (max %d)", MAX_FOCUS_CONTEXTS);
         uflake_mutex_unlock(g_focus_mgr.mutex);
         return NULL;
@@ -138,8 +173,10 @@ ugui_focus_ctx_t *ugui_focus_register(lv_obj_t *obj, ugui_layer_t layer, bool au
     UFLAKE_LOGI(TAG, "Registered object %p on layer %d", obj, layer);
 
     // Auto-focus if requested and on top layer
-    if (auto_focus && layer >= g_focus_mgr.active_layer) {
+    if (auto_focus && layer >= g_focus_mgr.active_layer)
+    {
         g_focus_mgr.active_layer = layer;
+        update_input_group(); // Update input device assignment
         UFLAKE_LOGI(TAG, "Auto-focused object %p", obj);
     }
 
@@ -148,8 +185,10 @@ ugui_focus_ctx_t *ugui_focus_register(lv_obj_t *obj, ugui_layer_t layer, bool au
     return ctx;
 }
 
-uflake_result_t ugui_focus_unregister(ugui_focus_ctx_t *ctx) {
-    if (!g_focus_mgr.initialized || !ctx || !ctx->focused_obj) {
+uflake_result_t ugui_focus_unregister(ugui_focus_ctx_t *ctx)
+{
+    if (!g_focus_mgr.initialized || !ctx || !ctx->focused_obj)
+    {
         return UFLAKE_ERROR;
     }
 
@@ -159,7 +198,8 @@ uflake_result_t ugui_focus_unregister(ugui_focus_ctx_t *ctx) {
     ugui_layer_t layer = ctx->layer;
 
     // Remove from input group
-    if (g_focus_mgr.focus_groups[layer]) {
+    if (g_focus_mgr.focus_groups[layer])
+    {
         lv_group_remove_obj(obj);
     }
 
@@ -168,7 +208,14 @@ uflake_result_t ugui_focus_unregister(ugui_focus_ctx_t *ctx) {
     g_focus_mgr.registered_count--;
 
     // Update active layer if this was on active layer
+    ugui_layer_t old_layer = g_focus_mgr.active_layer;
     g_focus_mgr.active_layer = find_highest_active_layer();
+
+    // Update input group if layer changed
+    if (old_layer != g_focus_mgr.active_layer)
+    {
+        update_input_group();
+    }
 
     UFLAKE_LOGI(TAG, "Unregistered object %p (active layer now %d)", obj, g_focus_mgr.active_layer);
 
@@ -177,35 +224,50 @@ uflake_result_t ugui_focus_unregister(ugui_focus_ctx_t *ctx) {
     return UFLAKE_OK;
 }
 
-uflake_result_t ugui_focus_request(ugui_focus_ctx_t *ctx) {
-    if (!g_focus_mgr.initialized || !ctx || !ctx->focused_obj) {
+uflake_result_t ugui_focus_request(ugui_focus_ctx_t *ctx)
+{
+    if (!g_focus_mgr.initialized || !ctx || !ctx->focused_obj)
+    {
         return UFLAKE_ERROR;
     }
 
     uflake_mutex_lock(g_focus_mgr.mutex, 100);
 
     // Only grant focus if layer is top-most or higher
-    if (ctx->layer >= g_focus_mgr.active_layer) {
+    if (ctx->layer >= g_focus_mgr.active_layer)
+    {
         g_focus_mgr.active_layer = ctx->layer;
+        update_input_group(); // Update input device assignment
         UFLAKE_LOGI(TAG, "Focus granted to object %p on layer %d", ctx->focused_obj, ctx->layer);
         uflake_mutex_unlock(g_focus_mgr.mutex);
         return UFLAKE_OK;
-    } else {
+    }
+    else
+    {
         UFLAKE_LOGW(TAG, "Focus denied - layer %d blocked by layer %d", ctx->layer, g_focus_mgr.active_layer);
         uflake_mutex_unlock(g_focus_mgr.mutex);
         return UFLAKE_ERROR;
     }
 }
 
-uflake_result_t ugui_focus_release(ugui_focus_ctx_t *ctx) {
-    if (!g_focus_mgr.initialized || !ctx) {
+uflake_result_t ugui_focus_release(ugui_focus_ctx_t *ctx)
+{
+    if (!g_focus_mgr.initialized || !ctx)
+    {
         return UFLAKE_ERROR;
     }
 
     uflake_mutex_lock(g_focus_mgr.mutex, 100);
 
     // Update active layer to next highest
+    ugui_layer_t old_layer = g_focus_mgr.active_layer;
     g_focus_mgr.active_layer = find_highest_active_layer();
+
+    // Update input group if layer changed
+    if (old_layer != g_focus_mgr.active_layer)
+    {
+        update_input_group();
+    }
 
     UFLAKE_LOGI(TAG, "Focus released, active layer now %d", g_focus_mgr.active_layer);
 
@@ -214,8 +276,10 @@ uflake_result_t ugui_focus_release(ugui_focus_ctx_t *ctx) {
     return UFLAKE_OK;
 }
 
-bool ugui_focus_has_focus(ugui_focus_ctx_t *ctx) {
-    if (!g_focus_mgr.initialized || !ctx) {
+bool ugui_focus_has_focus(ugui_focus_ctx_t *ctx)
+{
+    if (!g_focus_mgr.initialized || !ctx)
+    {
         return false;
     }
 
@@ -226,17 +290,21 @@ bool ugui_focus_has_focus(ugui_focus_ctx_t *ctx) {
 // INPUT GROUP MANAGEMENT
 // ============================================================================
 
-uflake_result_t ugui_focus_add_to_group(ugui_focus_ctx_t *ctx, lv_obj_t *obj) {
-    if (!g_focus_mgr.initialized || !ctx || !obj) {
+uflake_result_t ugui_focus_add_to_group(ugui_focus_ctx_t *ctx, lv_obj_t *obj)
+{
+    if (!g_focus_mgr.initialized || !ctx || !obj)
+    {
         return UFLAKE_ERROR;
     }
 
-    if (!is_valid_layer(ctx->layer)) {
+    if (!is_valid_layer(ctx->layer))
+    {
         return UFLAKE_ERROR;
     }
 
     lv_group_t *group = g_focus_mgr.focus_groups[ctx->layer];
-    if (!group) {
+    if (!group)
+    {
         return UFLAKE_ERROR;
     }
 
@@ -246,8 +314,10 @@ uflake_result_t ugui_focus_add_to_group(ugui_focus_ctx_t *ctx, lv_obj_t *obj) {
     return UFLAKE_OK;
 }
 
-uflake_result_t ugui_focus_remove_from_group(ugui_focus_ctx_t *ctx, lv_obj_t *obj) {
-    if (!g_focus_mgr.initialized || !ctx || !obj) {
+uflake_result_t ugui_focus_remove_from_group(ugui_focus_ctx_t *ctx, lv_obj_t *obj)
+{
+    if (!g_focus_mgr.initialized || !ctx || !obj)
+    {
         return UFLAKE_ERROR;
     }
 
@@ -257,13 +327,16 @@ uflake_result_t ugui_focus_remove_from_group(ugui_focus_ctx_t *ctx, lv_obj_t *ob
     return UFLAKE_OK;
 }
 
-uflake_result_t ugui_focus_next(ugui_focus_ctx_t *ctx) {
-    if (!g_focus_mgr.initialized || !ctx || !is_valid_layer(ctx->layer)) {
+uflake_result_t ugui_focus_next(ugui_focus_ctx_t *ctx)
+{
+    if (!g_focus_mgr.initialized || !ctx || !is_valid_layer(ctx->layer))
+    {
         return UFLAKE_ERROR;
     }
 
     lv_group_t *group = g_focus_mgr.focus_groups[ctx->layer];
-    if (!group) {
+    if (!group)
+    {
         return UFLAKE_ERROR;
     }
 
@@ -271,13 +344,16 @@ uflake_result_t ugui_focus_next(ugui_focus_ctx_t *ctx) {
     return UFLAKE_OK;
 }
 
-uflake_result_t ugui_focus_prev(ugui_focus_ctx_t *ctx) {
-    if (!g_focus_mgr.initialized || !ctx || !is_valid_layer(ctx->layer)) {
+uflake_result_t ugui_focus_prev(ugui_focus_ctx_t *ctx)
+{
+    if (!g_focus_mgr.initialized || !ctx || !is_valid_layer(ctx->layer))
+    {
         return UFLAKE_ERROR;
     }
 
     lv_group_t *group = g_focus_mgr.focus_groups[ctx->layer];
-    if (!group) {
+    if (!group)
+    {
         return UFLAKE_ERROR;
     }
 
@@ -289,18 +365,23 @@ uflake_result_t ugui_focus_prev(ugui_focus_ctx_t *ctx) {
 // LAYER MANAGEMENT
 // ============================================================================
 
-ugui_layer_t ugui_focus_get_active_layer(void) {
+ugui_layer_t ugui_focus_get_active_layer(void)
+{
     return g_focus_mgr.active_layer;
 }
 
-lv_obj_t *ugui_focus_get_layer_object(ugui_layer_t layer) {
-    if (!is_valid_layer(layer)) {
+lv_obj_t *ugui_focus_get_layer_object(ugui_layer_t layer)
+{
+    if (!is_valid_layer(layer))
+    {
         return NULL;
     }
 
-    for (int i = 0; i < MAX_FOCUS_CONTEXTS; i++) {
-        if (g_focus_mgr.contexts[i].focused_obj != NULL && 
-            g_focus_mgr.contexts[i].layer == layer) {
+    for (int i = 0; i < MAX_FOCUS_CONTEXTS; i++)
+    {
+        if (g_focus_mgr.contexts[i].focused_obj != NULL &&
+            g_focus_mgr.contexts[i].layer == layer)
+        {
             return g_focus_mgr.contexts[i].focused_obj;
         }
     }
@@ -308,14 +389,16 @@ lv_obj_t *ugui_focus_get_layer_object(ugui_layer_t layer) {
     return NULL;
 }
 
-uflake_result_t ugui_focus_block_below(ugui_layer_t layer) {
+uflake_result_t ugui_focus_block_below(ugui_layer_t layer)
+{
     // Input blocking is handled by checking active_layer in focus_request
     // This is a no-op, but can be extended for explicit blocking
     UFLAKE_LOGI(TAG, "Blocking input below layer %d", layer);
     return UFLAKE_OK;
 }
 
-uflake_result_t ugui_focus_unblock_below(ugui_layer_t layer) {
+uflake_result_t ugui_focus_unblock_below(ugui_layer_t layer)
+{
     UFLAKE_LOGI(TAG, "Unblocking input below layer %d", layer);
     return UFLAKE_OK;
 }
@@ -324,13 +407,16 @@ uflake_result_t ugui_focus_unblock_below(ugui_layer_t layer) {
 // SAFE DELETION HELPERS
 // ============================================================================
 
-uflake_result_t ugui_focus_safe_delete(ugui_focus_ctx_t *ctx, lv_obj_t *obj) {
-    if (!obj) {
+uflake_result_t ugui_focus_safe_delete(ugui_focus_ctx_t *ctx, lv_obj_t *obj)
+{
+    if (!obj)
+    {
         return UFLAKE_ERROR;
     }
 
     // Unregister from focus if registered
-    if (ctx) {
+    if (ctx)
+    {
         ugui_focus_unregister(ctx);
     }
 
@@ -342,19 +428,23 @@ uflake_result_t ugui_focus_safe_delete(ugui_focus_ctx_t *ctx, lv_obj_t *obj) {
     return UFLAKE_OK;
 }
 
-uflake_result_t ugui_focus_safe_delete_children(lv_obj_t *parent) {
-    if (!parent) {
+uflake_result_t ugui_focus_safe_delete_children(lv_obj_t *parent)
+{
+    if (!parent)
+    {
         return UFLAKE_ERROR;
     }
 
     // LVGL's lv_obj_clean handles children deletion safely
     // But we need to unregister any focused children first
     uint32_t child_count = lv_obj_get_child_count(parent);
-    
-    for (uint32_t i = 0; i < child_count; i++) {
+
+    for (uint32_t i = 0; i < child_count; i++)
+    {
         lv_obj_t *child = lv_obj_get_child(parent, i);
         ugui_focus_ctx_t *ctx = find_context_by_obj(child);
-        if (ctx) {
+        if (ctx)
+        {
             ugui_focus_unregister(ctx);
         }
     }
@@ -370,24 +460,30 @@ uflake_result_t ugui_focus_safe_delete_children(lv_obj_t *parent) {
 // DEBUG AND INFO
 // ============================================================================
 
-uflake_result_t ugui_focus_get_stats(uint32_t *registered_count, ugui_layer_t *active_layer) {
-    if (!g_focus_mgr.initialized) {
+uflake_result_t ugui_focus_get_stats(uint32_t *registered_count, ugui_layer_t *active_layer)
+{
+    if (!g_focus_mgr.initialized)
+    {
         return UFLAKE_ERROR;
     }
 
-    if (registered_count) {
+    if (registered_count)
+    {
         *registered_count = g_focus_mgr.registered_count;
     }
 
-    if (active_layer) {
+    if (active_layer)
+    {
         *active_layer = g_focus_mgr.active_layer;
     }
 
     return UFLAKE_OK;
 }
 
-void ugui_focus_debug_print(void) {
-    if (!g_focus_mgr.initialized) {
+void ugui_focus_debug_print(void)
+{
+    if (!g_focus_mgr.initialized)
+    {
         UFLAKE_LOGE(TAG, "Focus manager not initialized");
         return;
     }
@@ -396,8 +492,10 @@ void ugui_focus_debug_print(void) {
     UFLAKE_LOGI(TAG, "Registered objects: %lu", g_focus_mgr.registered_count);
     UFLAKE_LOGI(TAG, "Active layer: %d", g_focus_mgr.active_layer);
 
-    for (int i = 0; i < MAX_FOCUS_CONTEXTS; i++) {
-        if (g_focus_mgr.contexts[i].focused_obj) {
+    for (int i = 0; i < MAX_FOCUS_CONTEXTS; i++)
+    {
+        if (g_focus_mgr.contexts[i].focused_obj)
+        {
             UFLAKE_LOGI(TAG, "  [%d] obj=%p layer=%d enabled=%d",
                         i,
                         g_focus_mgr.contexts[i].focused_obj,

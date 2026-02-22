@@ -274,11 +274,4 @@ void gui_demo_app_main(void)
     // ========================================================================
     uflake_mutex_unlock(gui_mutex);
     UFLAKE_LOGI(TAG, "GUI mutex released, UI creation complete");
-
-    // Main loop - yield CPU and keep app alive
-    // LVGL event callbacks will run in the GUI task context (already mutex-protected)
-    while (1)
-    {
-        uflake_process_yield(100);
-    }
 }

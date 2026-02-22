@@ -19,6 +19,12 @@ extern "C"
      */
     void keypad_read_cb(lv_indev_t *indev, lv_indev_data_t *data);
 
+    /**
+     * @brief Get the keypad input device
+     * @return Pointer to the keypad input device, or NULL if not initialized
+     */
+    lv_indev_t *keypad_get_indev(void);
+
 #ifdef __cplusplus
 }
 #endif
