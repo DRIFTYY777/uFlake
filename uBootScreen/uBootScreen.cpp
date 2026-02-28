@@ -334,7 +334,7 @@ void uboot_screen_stop(void)
             vTaskDelay(pdMS_TO_TICKS(10));
         }
 
-        ugpio_pwm_set_duty(BACKLIGHT_PIN, 0);
+        // ugpio_pwm_set_duty(BACKLIGHT_PIN, 0);
     }
 }
 

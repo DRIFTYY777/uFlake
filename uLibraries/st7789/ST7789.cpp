@@ -15,7 +15,7 @@ static void ST7789_config(st7789_driver_t *driver);
 static void ST7789_multi_cmd(st7789_driver_t *driver, const st7789_command_t *sequence);
 
 // local copy of the display driver for use in the flush callback
-static st7789_driver_t display;
+static st7789_driver_t *display;
 
 bool ST7789_init(st7789_driver_t *driver)
 {
@@ -78,7 +78,7 @@ bool ST7789_init(st7789_driver_t *driver)
     ST7789_reset(driver);
     ST7789_config(driver);
 
-    display = *driver; // Store a local copy for use in the flush callback
+    display = driver; // Store a pointer for use in the flush callback
 
     UFLAKE_LOGI(TAG, "Display configured and ready (%dx%d)", driver->display_width, driver->display_height);
 
@@ -247,15 +247,15 @@ void ST7789_invert_display(st7789_driver_t *driver, bool invert)
     ST7789_multi_cmd(driver, init_sequence2);
 }
 
-void lvgl_flush_cb(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map)
-{
-    uint32_t size = lv_area_get_width(area) * lv_area_get_height(area);
-    ST7789_set_window(&display, area->x1, area->y1, area->x2, area->y2);
-    display.current_buffer = (st7789_color_t *)px_map;
-    display.buffer_size = size;
-    ST7789_swap_buffers(&display);
-    lv_disp_flush_ready(disp);
-}
+// void lvgl_flush_cb(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map)
+// {
+//     uint32_t size = lv_area_get_width(area) * lv_area_get_height(area);
+//     ST7789_set_window(&display, area->x1, area->y1, area->x2, area->y2);
+//     display.current_buffer = (st7789_color_t *)px_map;
+//     display.buffer_size = size;
+//     ST7789_swap_buffers(&display);
+//     lv_disp_flush_ready(disp);
+// }
 
 /**********************
  *   STATIC FUNCTIONS
@@ -382,7 +382,6 @@ void ST7789_queue_empty(st7789_driver_t *driver)
 
     while (driver->queue_fill > 0)
     {
-        // ✅ FIX: Use bounded timeout instead of portMAX_DELAY
         // If SPI gets stuck (DMA issue, bus contention), this prevents infinite hang
         esp_err_t ret = spi_device_get_trans_result(driver->spi, &return_trans, timeout_ticks);
 
@@ -411,4 +410,60 @@ void ST7789_queue_empty(st7789_driver_t *driver)
             break;
         }
     }
+}
+
+// Simple LVGL flush callback - matches original ST7789_write_pixels pattern
+void lvgl_flush_cb(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map)
+{
+    display = (st7789_driver_t *)lv_display_get_user_data(disp);
+
+    if (!display || !px_map)
+    {
+        lv_display_flush_ready(disp);
+        return;
+    }
+
+    // Set the window for the entire area ONCE (like original driver)
+    ST7789_set_window(display, area->x1, area->y1, area->x2, area->y2);
+
+    // Wait for any previous transfers and set DC high for pixel data
+    ST7789_queue_empty(display);
+    gpio_set_level(display->pin_dc, 1);
+
+    // Calculate total bytes to transfer
+    int32_t width = lv_area_get_width(area);
+    int32_t height = lv_area_get_height(area);
+    size_t total_bytes = width * height * 2; // RGB565 = 2 bytes per pixel
+
+    // Use driver's buffer_size as max chunk (buffer_size is in pixels)
+    // 240*20 = 4800 pixels = 9600 bytes - well under 32KB DMA limit
+    size_t max_chunk = display->buffer_size * 2;
+
+    uint8_t *data_ptr = px_map;
+    size_t remaining = total_bytes;
+
+    while (remaining > 0)
+    {
+        size_t chunk_size = (remaining > max_chunk) ? max_chunk : remaining;
+
+        // Simple SPI transaction like ST7789_write_pixels does
+        spi_transaction_t trans;
+        memset(&trans, 0, sizeof(trans));
+        trans.tx_buffer = data_ptr;
+        trans.length = chunk_size * 8; // bits
+        trans.rxlength = 0;
+
+        uspi_queue_trans(display->spi, &trans, portMAX_DELAY);
+        display->queue_fill++;
+
+        // Wait for transfer to complete
+        spi_transaction_t *rtrans;
+        uspi_get_trans_result(display->spi, &rtrans, portMAX_DELAY);
+        display->queue_fill--;
+
+        data_ptr += chunk_size;
+        remaining -= chunk_size;
+    }
+
+    lv_display_flush_ready(disp);
 }

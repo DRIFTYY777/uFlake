@@ -106,8 +106,6 @@ void config_and_init_nrf24()
 
 #include "input.h"
 
-uGUI gui;
-
 void uflake_core_init(void)
 {
     // Initialize the kernel
@@ -139,7 +137,9 @@ void uflake_core_init(void)
 
     // uGui_init(&display);
 
-    gui.initialize(display.display_width, display.display_height);
+    uGui_init(&display);
+    // frontend_init();
+
     register_builtin_apps();
 
     UFLAKE_LOGI(TAG, "uFlake Core initialized successfully");

@@ -1,6 +1,10 @@
 idf_component_register(
     SRCS 
         "uGUI.cpp"
+        "src/uInputs.cpp"
+        "src/gui_types.cpp"
+        "src/uGui_notification.cpp"
+        "src/uGui_theme.cpp"
     
     INCLUDE_DIRS 
         "."
@@ -16,6 +20,8 @@ idf_component_register(
         lvgl__lvgl
         uLibraries
         uFlakeHAL
+        uServices
+        
         
         
     PRIV_REQUIRES
