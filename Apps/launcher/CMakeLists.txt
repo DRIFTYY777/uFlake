@@ -1,5 +1,5 @@
 idf_component_register(
-    SRCS "app_main.c"
+    SRCS "launcher.c"
     INCLUDE_DIRS "."
-    REQUIRES uAppLoader uFlakeKernel
+    REQUIRES uAppLoader uFlakeKernel uGraphics
 )

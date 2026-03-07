@@ -4,6 +4,7 @@ idf_component_register(
         "appLifecycle.cpp"
         "appService.cpp"
         "appManifest.cpp"
+        "app_force_exit.cpp"
     
     INCLUDE_DIRS 
         "."
@@ -11,6 +12,7 @@ idf_component_register(
     REQUIRES 
         uFlakeKernel
         uFlakeHAL
+        uGraphics
         nvs_flash
 )
 

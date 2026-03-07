@@ -27,110 +27,44 @@ static uflake_mutex_t *gui_mutex = NULL;
 static uint32_t lvgl_tick_timer_id = 0;
 static lv_obj_t *content_container = NULL; // Container for app content (below notification)
 
+// App loader integration state
+static uint32_t current_gui_app_id = 0;
+static uGui_app_exit_cb_t app_exit_callback = NULL;
+static void (*launcher_fn)(void) = NULL;
+
 // Forward declarations
 static void lv_tick_timer_cb(void *arg);
 static void gui_task(void *arg);
+static void global_key_event_cb(lv_event_t *e);
+
+// Global key event handler - intercepts ESC key for app exit
+static void global_key_event_cb(lv_event_t *e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+
+    if (code == LV_EVENT_KEY)
+    {
+        uint32_t key = lv_event_get_key(e);
+
+        if (key == LV_KEY_ESC)
+        {
+            // ESC pressed - exit current app if not on home screen
+            if (!uGui_is_home_screen())
+            {
+                ESP_LOGI(TAG, "ESC pressed - exiting current app");
+                uGui_exit_current_app();
+                // Stop event propagation
+                lv_event_stop_bubbling(e);
+            }
+        }
+    }
+}
 
 // LVGL tick timer callback
 static void lv_tick_timer_cb(void *arg)
 {
     (void)arg;
     lv_tick_inc(LV_TICK_PERIOD_MS);
-}
-
-// Event handler for button clicks
-static void btn_event_cb(lv_event_t *e)
-{
-    lv_event_code_t code = lv_event_get_code(e);
-    lv_obj_t *btn = (lv_obj_t *)lv_event_get_target(e);
-
-    if (code == LV_EVENT_CLICKED)
-    {
-        // Get button label to identify which button was clicked
-        lv_obj_t *label = lv_obj_get_child(btn, 0);
-        const char *text = lv_label_get_text(label);
-        ESP_LOGI(TAG, "Button clicked: %s", text);
-
-        // Toggle button color on click
-        static uint8_t toggle = 0;
-        toggle = !toggle;
-        if (toggle)
-        {
-            lv_obj_set_style_bg_color(btn, lv_color_hex(0x00AA00), LV_PART_MAIN);
-        }
-        else
-        {
-            lv_obj_set_style_bg_color(btn, lv_palette_main(LV_PALETTE_BLUE), LV_PART_MAIN);
-        }
-    }
-    else if (code == LV_EVENT_FOCUSED)
-    {
-        lv_obj_t *label = lv_obj_get_child(btn, 0);
-        const char *text = lv_label_get_text(label);
-        ESP_LOGI(TAG, "Button FOCUSED: %s", text);
-        // Visual feedback when focused
-        lv_obj_set_style_outline_width(btn, 4, LV_PART_MAIN);
-        lv_obj_set_style_outline_color(btn, lv_color_hex(0xFF0000), LV_PART_MAIN);
-    }
-    else if (code == LV_EVENT_DEFOCUSED)
-    {
-        lv_obj_t *label = lv_obj_get_child(btn, 0);
-        const char *text = lv_label_get_text(label);
-        ESP_LOGI(TAG, "Button DEFOCUSED: %s", text);
-        // Remove outline when not focused
-        lv_obj_set_style_outline_width(btn, 0, LV_PART_MAIN);
-    }
-}
-
-void lv_example_get_started_2(void)
-{
-    // Get the group for adding interactive objects
-    lv_group_t *group = uGui_get_group();
-
-    // Get the content container - apps create UI inside this
-    lv_obj_t *container = uGui_get_content_container();
-
-    // Button 1 - create inside content container (Y=0 is relative to container)
-    lv_obj_t *btn1 = lv_button_create(container);
-    lv_obj_set_pos(btn1, 10, 5);
-    lv_obj_set_size(btn1, 140, 50);
-    lv_obj_add_event_cb(btn1, btn_event_cb, LV_EVENT_ALL, NULL);
-
-    lv_obj_t *label1 = lv_label_create(btn1);
-    lv_label_set_text(label1, "Button 1");
-    lv_obj_center(label1);
-
-    // Add to group for keyboard navigation
-    lv_group_add_obj(group, btn1);
-
-    // Button 2
-    lv_obj_t *btn2 = lv_button_create(container);
-    lv_obj_set_pos(btn2, 10, 60);
-    lv_obj_set_size(btn2, 140, 50);
-    lv_obj_add_event_cb(btn2, btn_event_cb, LV_EVENT_ALL, NULL);
-
-    lv_obj_t *label2 = lv_label_create(btn2);
-    lv_label_set_text(label2, "Button 2");
-    lv_obj_center(label2);
-
-    lv_group_add_obj(group, btn2);
-
-    // Button 3
-    lv_obj_t *btn3 = lv_button_create(container);
-    lv_obj_set_pos(btn3, 10, 115);
-    lv_obj_set_size(btn3, 140, 50);
-    lv_obj_add_event_cb(btn3, btn_event_cb, LV_EVENT_ALL, NULL);
-
-    lv_obj_t *label3 = lv_label_create(btn3);
-    lv_label_set_text(label3, "Button 3");
-    lv_obj_center(label3);
-
-    lv_group_add_obj(group, btn3);
-
-    // Focus on the first button
-    lv_group_focus_obj(btn1);
-
-    ESP_LOGI(TAG, "Created 3 interactive buttons with keyboard navigation");
 }
 
 void GUI_frontend()
@@ -270,7 +204,9 @@ void uGui_init(st7789_driver_t *drv)
         ESP_LOGI(TAG, "Theme manager initialized");
     }
 
-    ugui_theme_set_bg_image_sdcard("/sd/car.jpeg");
+    // ugui_theme_set_bg_image_sdcard("/sd/car.jpeg");
+    // ugui_theme_apply_dark();
+    ugui_theme_apply_blue();
 
     // Create content container for app UI (positioned below notification bar)
     // Apps create their UI inside this container - no overlapping with notification
@@ -284,6 +220,10 @@ void uGui_init(st7789_driver_t *drv)
     lv_obj_clear_flag(content_container, LV_OBJ_FLAG_SCROLLABLE);
     ESP_LOGI(TAG, "Content container created");
 
+    // Add global key event handler to screen for ESC handling
+    lv_obj_add_event_cb(lv_scr_act(), global_key_event_cb, LV_EVENT_KEY, NULL);
+    ESP_LOGI(TAG, "Global key event handler registered");
+
     // Initialize notification bar (at Y=0, no overlapping with content)
     if (ugui_notification_init() != UFLAKE_OK)
     {
@@ -291,16 +231,15 @@ void uGui_init(st7789_driver_t *drv)
     }
     else
     {
-        ESP_LOGI(TAG, "Notification bar initialized");
         ugui_notification_show();
     }
 
-    // Create example UI inside content container
-    lv_example_get_started_2();
+    // NOTE: Don't create any UI here - the launcher app will handle that
+    // The launcher gets started by app_loader after uGui_init
 
     // Create GUI task using kernel process manager
     uint32_t gui_pid;
-    uflake_process_create("GUI_Task", gui_task, NULL, 1024 * 8, PROCESS_PRIORITY_HIGH, &gui_pid);
+    uflake_process_create("GUI_Task", gui_task, NULL, 1024 * 10, PROCESS_PRIORITY_HIGH, &gui_pid);
 }
 
 // GUI task - handles LVGL with semaphore protection
@@ -355,7 +294,6 @@ void uGui_clear_group(void)
     if (group_interact != NULL)
     {
         lv_group_remove_all_objs(group_interact);
-        ESP_LOGI(TAG, "Group cleared");
     }
 }
 
@@ -368,6 +306,123 @@ void uGui_reset_group(void)
     if (group_interact != NULL)
     {
         lv_group_set_default(group_interact);
-        ESP_LOGI(TAG, "Group reset and ready for new window");
     }
+}
+
+// ============================================================================
+// APP WINDOW MANAGEMENT
+// ============================================================================
+
+lv_obj_t *uGui_start_app(const char *app_name)
+{
+    // First clear any existing content and group safely
+    uGui_clear_app_content();
+    uGui_reset_group();
+
+    // NOTE: App name notification is handled by uGui_launch_gui_app (via appLoader)
+    // Don't call it here to avoid duplicates
+
+    return content_container;
+}
+
+void uGui_clear_app_content(void)
+{
+    if (content_container != NULL)
+    {
+        // Safely delete all children of content container
+        lv_obj_clean(content_container);
+    }
+}
+
+void uGui_add_to_group(lv_obj_t *obj)
+{
+    if (obj != NULL && group_interact != NULL)
+    {
+        lv_group_add_obj(group_interact, obj);
+    }
+}
+
+// ============================================================================
+// APP LOADER INTEGRATION
+// ============================================================================
+
+void uGui_set_app_exit_callback(uGui_app_exit_cb_t callback)
+{
+    app_exit_callback = callback;
+}
+
+void uGui_set_launcher(void (*fn)(void))
+{
+    launcher_fn = fn;
+}
+
+void uGui_launch_gui_app(uint32_t app_id, const char *app_name, void (*entry_fn)(void))
+{
+    if (entry_fn == NULL)
+    {
+        ESP_LOGE(TAG, "Cannot launch app with NULL entry function");
+        return;
+    }
+
+    // Store current app ID
+    current_gui_app_id = app_id;
+
+    // Clear content and group
+    uGui_clear_app_content();
+    uGui_reset_group();
+
+    // Show app name in notification (handled by notification panel)
+    if (app_name != NULL)
+    {
+        ugui_notification_show_app_name(app_name, 2000);
+    }
+
+    // Call the app's entry function - it sets up UI and returns
+    // No separate task needed - LVGL handles everything
+    entry_fn();
+}
+
+void uGui_exit_current_app(void)
+{
+    if (current_gui_app_id == 0)
+    {
+        ESP_LOGW(TAG, "No app to exit");
+        return;
+    }
+
+    uint32_t exiting_app_id = current_gui_app_id;
+    current_gui_app_id = 0;
+
+    ESP_LOGI(TAG, "Exiting GUI app ID: %lu", exiting_app_id);
+
+    // Clear content and group
+    uGui_clear_app_content();
+    uGui_reset_group();
+
+    // Notify appLoader that app exited
+    if (app_exit_callback != NULL)
+    {
+        app_exit_callback(exiting_app_id);
+    }
+
+    // Return to launcher/home screen
+    if (launcher_fn != NULL)
+    {
+        ESP_LOGI(TAG, "Returning to launcher");
+        launcher_fn();
+    }
+    else
+    {
+        ESP_LOGW(TAG, "No launcher function registered");
+    }
+}
+
+uint32_t uGui_get_current_app_id(void)
+{
+    return current_gui_app_id;
+}
+
+bool uGui_is_home_screen(void)
+{
+    return (current_gui_app_id == 0);
 }

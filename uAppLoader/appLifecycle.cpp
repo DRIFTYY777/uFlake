@@ -1,6 +1,8 @@
 #include "appLifecycle.h"
 #include "appLoader.h"
+#include "app_force_exit.h"
 #include "esp_timer.h"
+#include "uGui.h"
 
 static const char *TAG = "APP_LIFECYCLE";
 
@@ -9,11 +11,45 @@ extern app_descriptor_t *app_loader_find_app_by_id(uint32_t app_id);
 extern uflake_result_t app_loader_resume(uint32_t app_id);
 
 // ============================================================================
+// GUI APP EXIT CALLBACK
+// ============================================================================
+
+// Called by uGui when a GUI app exits (user presses back button)
+static void gui_app_exit_callback(uint32_t app_id)
+{
+    app_descriptor_t *app = app_loader_find_app_by_id(app_id);
+    if (app == NULL)
+    {
+        UFLAKE_LOGW(TAG, "GUI app exit callback: app ID %lu not found", app_id);
+        return;
+    }
+
+    UFLAKE_LOGI(TAG, "GUI app %s exited", app->manifest.name);
+
+    // Mark app as stopped
+    app->state = APP_STATE_STOPPED;
+    app->task_handle = NULL;
+
+    // Resume launcher if registered
+    uint32_t launcher_id = app_loader_get_launcher();
+    if (launcher_id != 0)
+    {
+        app_loader_resume(launcher_id);
+    }
+}
+
+// ============================================================================
 // INITIALIZATION
 // ============================================================================
 
 uflake_result_t app_lifecycle_init(void)
 {
+    // Register GUI app exit callback
+    uGui_set_app_exit_callback(gui_app_exit_callback);
+
+    // Initialize force exit monitor (back button held 3s)
+    app_force_exit_init();
+
     UFLAKE_LOGI(TAG, "App lifecycle manager initialized");
     return UFLAKE_OK;
 }
@@ -94,7 +130,26 @@ uflake_result_t app_lifecycle_launch(app_descriptor_t *app,
         }
     }
 
-    // Create task for app using uFlake kernel
+    // Handle GUI apps differently - they run in the GUI task context
+    if (app->manifest.requires_gui && !app->is_launcher)
+    {
+        UFLAKE_LOGI(TAG, "Launching GUI app: %s", app->manifest.name);
+
+        // GUI apps don't need a separate task
+        // They just set up UI and LVGL handles events in GUI task
+        app_entry_fn entry = (app_entry_fn)app->entry_point;
+        uGui_launch_gui_app(app->app_id, app->manifest.name, entry);
+
+        app->state = APP_STATE_RUNNING;
+        app->task_handle = NULL; // No separate task for GUI apps
+        app->launch_count++;
+        app->last_run_time = (uint32_t)(esp_timer_get_time() / 1000000);
+        *current_app_id = app->app_id;
+
+        return UFLAKE_OK;
+    }
+
+    // Non-GUI apps: Create task for app using uFlake kernel
     uint32_t stack_size = app->manifest.stack_size > 0 ? app->manifest.stack_size : 4096;
 
     // Map app priority to kernel priority

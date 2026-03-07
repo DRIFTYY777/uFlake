@@ -12,6 +12,7 @@
 #include "appLifecycle.h"
 #include "appManifest.h"
 #include "appService.h"
+#include "app_force_exit.h"
 #include "esp_timer.h"
 #include <string.h>
 

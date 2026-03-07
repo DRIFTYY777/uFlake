@@ -203,28 +203,49 @@ uflake_result_t ugui_notification_init(void)
     lv_obj_set_style_pad_all(g_notif.container, 0, 0);
     lv_obj_clear_flag(g_notif.container, LV_OBJ_FLAG_SCROLLABLE);
 
+    // // Create battery label (left side of horizontal bar)
+    // g_notif.battery_label = lv_label_create(g_notif.container);
+    // lv_obj_set_style_text_color(g_notif.battery_label, g_notif.theme.notification_fg, 0);
+    // lv_label_set_text(g_notif.battery_label, "100%");
+    // lv_obj_align(g_notif.battery_label, LV_ALIGN_LEFT_MID, 5, 0);
+
+    uint8_t battery = 76;
+
+    const char *icon;
+
+    if (battery < 20)
+        icon = LV_SYMBOL_BATTERY_EMPTY;
+    else if (battery < 40)
+        icon = LV_SYMBOL_BATTERY_1;
+    else if (battery < 60)
+        icon = LV_SYMBOL_BATTERY_2;
+    else if (battery < 80)
+        icon = LV_SYMBOL_BATTERY_3;
+    else
+        icon = LV_SYMBOL_BATTERY_FULL;
+
     // Create battery label (left side of horizontal bar)
     g_notif.battery_label = lv_label_create(g_notif.container);
     lv_obj_set_style_text_color(g_notif.battery_label, g_notif.theme.notification_fg, 0);
-    lv_label_set_text(g_notif.battery_label, "100%");
+    lv_label_set_text_fmt(g_notif.battery_label, "%s %d%%", icon, battery);
     lv_obj_align(g_notif.battery_label, LV_ALIGN_LEFT_MID, 5, 0);
 
-    // Create WiFi icon (horizontal layout)
+    // Create WiFi icon (to the right of battery)
     g_notif.wifi_icon = lv_label_create(g_notif.container);
     lv_obj_set_style_text_color(g_notif.wifi_icon, g_notif.theme.notification_fg, 0);
-    lv_label_set_text(g_notif.wifi_icon, "W-");
+    lv_label_set_text(g_notif.wifi_icon, LV_SYMBOL_WIFI);
     lv_obj_align_to(g_notif.wifi_icon, g_notif.battery_label, LV_ALIGN_OUT_RIGHT_MID, 15, 0);
 
     // Create BT icon
     g_notif.bt_icon = lv_label_create(g_notif.container);
     lv_obj_set_style_text_color(g_notif.bt_icon, g_notif.theme.notification_fg, 0);
-    lv_label_set_text(g_notif.bt_icon, "--");
+    lv_label_set_text(g_notif.bt_icon, LV_SYMBOL_BLUETOOTH);
     lv_obj_align_to(g_notif.bt_icon, g_notif.wifi_icon, LV_ALIGN_OUT_RIGHT_MID, 15, 0);
 
     // Create SD card icon
     g_notif.sd_icon = lv_label_create(g_notif.container);
     lv_obj_set_style_text_color(g_notif.sd_icon, g_notif.theme.notification_fg, 0);
-    lv_label_set_text(g_notif.sd_icon, "SD");
+    lv_label_set_text(g_notif.sd_icon, LV_SYMBOL_SD_CARD);
     lv_obj_align_to(g_notif.sd_icon, g_notif.bt_icon, LV_ALIGN_OUT_RIGHT_MID, 15, 0);
 
     // Create time label (right side of horizontal bar)
@@ -459,8 +480,6 @@ uflake_result_t ugui_notification_show_app_name(const char *app_name, uint32_t d
             lv_timer_set_repeat_count(g_notif.app_name_timer, 1); // One-shot
         }
     }
-
-    UFLAKE_LOGI(TAG, "Showing app name: %s", app_name);
 
     return UFLAKE_OK;
 }

@@ -3,12 +3,12 @@
  * @brief uFlake Application Loader - Main API
  *
  * The App Loader provides a modular system for managing apps and services:
- * 
+ *
  * - appLoader: Core app registration and management
  * - appService: Background services (input, power, battery, etc.)
  * - appLifecycle: App launch, pause, resume, terminate
  * - appManifest: Manifest parsing and validation
- * 
+ *
  * Apps are GUI applications that users can launch and interact with.
  * Services are background tasks (no GUI) that provide system functionality.
  */
@@ -37,7 +37,7 @@ extern "C"
 #define EXTERNAL_APPS_FOLDER "/sdcard/apps"
 #define APP_MANIFEST_FILENAME "manifest.txt"
 
-#define FORCE_EXIT_HOLD_TIME_MS 2000 // Hold Right+Back for 2 seconds to force exit
+    // #define FORCE_EXIT_HOLD_TIME_MS 2000 // Hold Right+Back for 2 seconds to force exit
 
     // App types
     typedef enum
