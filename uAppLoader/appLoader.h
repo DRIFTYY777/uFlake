@@ -48,6 +48,22 @@ extern "C"
         APP_TYPE_SERVICE       // Background service (no UI, auto-start)
     } app_type_t;
 
+    // App subtypes - distinguishes GUI vs non-GUI vs ELF apps
+    typedef enum
+    {
+        APP_SUBTYPE_NON_GUI = 0,  // Background service, no display
+        APP_SUBTYPE_GUI_NATIVE,   // GUI app using LVGL directly (internal/native)
+        APP_SUBTYPE_GUI_ELF       // External ELF GUI app loaded from SD card
+    } app_subtype_t;
+
+    // Memory pressure levels
+    typedef enum
+    {
+        MEM_PRESSURE_NORMAL = 0,
+        MEM_PRESSURE_LOW,
+        MEM_PRESSURE_CRITICAL
+    } mem_pressure_level_t;
+
     // App location (where app code lives)
     typedef enum
     {
@@ -78,7 +94,29 @@ extern "C"
         bool requires_gui;                  // True if needs display
         bool requires_sdcard;               // True if needs SD card
         bool requires_network;              // True if needs WiFi/BT
+        // NEW FIELDS (at end for backward compatibility)
+        app_subtype_t subtype;              // App subtype (GUI vs non-GUI) - default: APP_SUBTYPE_GUI_NATIVE
+        uint32_t min_ram_bytes;             // Minimum RAM needed - default: 0 (no minimum)
     } app_manifest_t;
+
+    // Helper: Initialize manifest with required fields, new fields default
+    // Use this for backward compatibility: APP_MANIFEST_INIT("MyApp", "1.0", ...)
+    #define APP_MANIFEST_INIT(name_str, version_str, author_str, type_val, has_gui, has_sdcard, has_net) \
+        { \
+            .name = name_str, \
+            .version = version_str, \
+            .author = author_str, \
+            .description = "", \
+            .icon = "", \
+            .type = type_val, \
+            .stack_size = 4096, \
+            .priority = 5, \
+            .requires_gui = has_gui, \
+            .requires_sdcard = has_sdcard, \
+            .requires_network = has_net, \
+            .subtype = APP_SUBTYPE_GUI_NATIVE, \
+            .min_ram_bytes = 0 \
+        }
 
     // App descriptor - runtime info about app
     typedef struct app_descriptor_t
@@ -94,6 +132,10 @@ extern "C"
         bool is_launcher;            // True if this is launcher
         uint32_t launch_count;       // Times launched
         uint32_t last_run_time;      // Last launch timestamp
+        // Memory tracking (NEW)
+        uint32_t memory_used;        // Current memory used by app
+        uint32_t peak_memory;        // Peak memory usage
+        uint32_t context_handle;     // Handle to app context (for quick lookup)
     } app_descriptor_t;
 
     // App entry point signature - simple function that apps must implement
@@ -168,6 +210,14 @@ extern "C"
     uflake_result_t app_loader_launch(uint32_t app_id);
 
     /**
+     * @brief Launch an app with memory checks (NEW - memory-aware)
+     * @param app_id App ID to launch
+     * @param min_free_ram Minimum free RAM required (0 = use manifest default)
+     * @return UFLAKE_OK on success, UFLAKE_ERROR_MEMORY if insufficient RAM
+     */
+    uflake_result_t app_loader_launch_with_memory_check(uint32_t app_id, uint32_t min_free_ram);
+
+    /**
      * @brief Terminate a running app
      * @param app_id App ID to terminate
      * @return UFLAKE_OK on success
@@ -175,14 +225,14 @@ extern "C"
     uflake_result_t app_loader_terminate(uint32_t app_id);
 
     /**
-     * @brief Pause an app (suspend task, keeps state)
+     * @brief Pause an app (suspend task, keeps state) - fast app switching
      * @param app_id App ID to pause
      * @return UFLAKE_OK on success
      */
     uflake_result_t app_loader_pause(uint32_t app_id);
 
     /**
-     * @brief Resume a paused app
+     * @brief Resume a paused app - faster than relaunch
      * @param app_id App ID to resume
      * @return UFLAKE_OK on success
      */
@@ -225,6 +275,36 @@ extern "C"
      * @return App ID of launcher, or 0 if not registered
      */
     uint32_t app_loader_get_launcher(void);
+
+    // ============================================================================
+    // MEMORY MANAGEMENT (NEW)
+    // ============================================================================
+
+    /**
+     * @brief Get current free RAM available
+     * @return Free RAM in bytes
+     */
+    uint32_t app_loader_get_free_ram(void);
+
+    /**
+     * @brief Get current memory pressure level
+     * @return mem_pressure_level_t indicating memory pressure
+     */
+    mem_pressure_level_t app_loader_get_memory_pressure(void);
+
+    /**
+     * @brief Register callback for memory pressure events
+     * @param callback Function to call on memory pressure changes
+     */
+    typedef void (*app_loader_mem_pressure_cb_t)(mem_pressure_level_t level);
+    void app_loader_register_memory_callback(app_loader_mem_pressure_cb_t callback);
+
+    /**
+     * @brief Get app context handle (for advanced use)
+     * @param app_id App ID
+     * @return Context handle, or 0 if not found
+     */
+    uint32_t app_loader_get_context_handle(uint32_t app_id);
 
     // ============================================================================
     // FORCE EXIT (Button Combo Detection)

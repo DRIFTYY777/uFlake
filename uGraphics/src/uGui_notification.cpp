@@ -51,6 +51,9 @@ typedef struct
 
 static notification_bar_t g_notif = {};
 
+// Forward declaration
+static void update_display(void);
+
 // ============================================================================
 // INTERNAL HELPERS
 // ============================================================================
@@ -59,27 +62,19 @@ static notification_bar_t g_notif = {};
 static void app_name_lv_timer_cb(lv_timer_t *timer)
 {
     (void)timer;
-    // Clear app name after timeout
+
+    // Simply set flag to false - update_display() will handle all show/hide in one pass
     g_notif.showing_app_name = false;
+
+    // Delete the timer
     if (g_notif.app_name_timer)
     {
         lv_timer_delete(g_notif.app_name_timer);
         g_notif.app_name_timer = NULL;
     }
-    // Update display is safe here - we're in LVGL context
-    if (g_notif.app_name_label)
-        lv_obj_add_flag(g_notif.app_name_label, LV_OBJ_FLAG_HIDDEN);
-    // Show system icons again
-    if (g_notif.battery_label && g_notif.icon_config.show_battery)
-        lv_obj_clear_flag(g_notif.battery_label, LV_OBJ_FLAG_HIDDEN);
-    if (g_notif.wifi_icon && g_notif.icon_config.show_wifi)
-        lv_obj_clear_flag(g_notif.wifi_icon, LV_OBJ_FLAG_HIDDEN);
-    if (g_notif.bt_icon && g_notif.icon_config.show_bluetooth)
-        lv_obj_clear_flag(g_notif.bt_icon, LV_OBJ_FLAG_HIDDEN);
-    if (g_notif.sd_icon && g_notif.icon_config.show_sdcard)
-        lv_obj_clear_flag(g_notif.sd_icon, LV_OBJ_FLAG_HIDDEN);
-    if (g_notif.time_label && g_notif.icon_config.show_time)
-        lv_obj_clear_flag(g_notif.time_label, LV_OBJ_FLAG_HIDDEN);
+
+    // Single consolidated update - all icon visibility changes happen here
+    update_display();
 }
 
 static void update_display(void)
@@ -94,7 +89,7 @@ static void update_display(void)
     {
         lv_obj_clear_flag(g_notif.app_name_label, LV_OBJ_FLAG_HIDDEN);
 
-        // Hide system icons when showing app name
+        // Hide system status icons when showing app name (but keep time!)
         if (g_notif.battery_label)
             lv_obj_add_flag(g_notif.battery_label, LV_OBJ_FLAG_HIDDEN);
         if (g_notif.wifi_icon)
@@ -103,50 +98,75 @@ static void update_display(void)
             lv_obj_add_flag(g_notif.bt_icon, LV_OBJ_FLAG_HIDDEN);
         if (g_notif.sd_icon)
             lv_obj_add_flag(g_notif.sd_icon, LV_OBJ_FLAG_HIDDEN);
+
+        // Keep time visible while showing app name
         if (g_notif.time_label)
-            lv_obj_add_flag(g_notif.time_label, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_clear_flag(g_notif.time_label, LV_OBJ_FLAG_HIDDEN);
     }
     else
     {
         if (g_notif.app_name_label)
             lv_obj_add_flag(g_notif.app_name_label, LV_OBJ_FLAG_HIDDEN);
 
-        // Show system icons
-        if (g_notif.battery_label && g_notif.icon_config.show_battery)
+        // Show system icons - only update if config says to show them
+        if (g_notif.battery_label)
         {
-            lv_obj_clear_flag(g_notif.battery_label, LV_OBJ_FLAG_HIDDEN);
-            char bat_text[16];
-            snprintf(bat_text, sizeof(bat_text), "%s%d%%",
-                     g_notif.status.charging ? "+" : "B",
-                     g_notif.status.battery_percent);
-            lv_label_set_text(g_notif.battery_label, bat_text);
+            if (g_notif.icon_config.show_battery)
+            {
+                lv_obj_clear_flag(g_notif.battery_label, LV_OBJ_FLAG_HIDDEN);
+            }
+            else
+            {
+                lv_obj_add_flag(g_notif.battery_label, LV_OBJ_FLAG_HIDDEN);
+            }
         }
 
-        if (g_notif.wifi_icon && g_notif.icon_config.show_wifi)
+        if (g_notif.wifi_icon)
         {
-            lv_obj_clear_flag(g_notif.wifi_icon, LV_OBJ_FLAG_HIDDEN);
-            lv_label_set_text(g_notif.wifi_icon, g_notif.status.wifi_connected ? "W+" : "W-");
+            if (g_notif.icon_config.show_wifi)
+            {
+                lv_obj_clear_flag(g_notif.wifi_icon, LV_OBJ_FLAG_HIDDEN);
+            }
+            else
+            {
+                lv_obj_add_flag(g_notif.wifi_icon, LV_OBJ_FLAG_HIDDEN);
+            }
         }
 
-        if (g_notif.bt_icon && g_notif.icon_config.show_bluetooth)
+        if (g_notif.bt_icon)
         {
-            lv_obj_clear_flag(g_notif.bt_icon, LV_OBJ_FLAG_HIDDEN);
-            lv_label_set_text(g_notif.bt_icon, g_notif.status.bt_connected ? "BT" : "--");
+            if (g_notif.icon_config.show_bluetooth)
+            {
+                lv_obj_clear_flag(g_notif.bt_icon, LV_OBJ_FLAG_HIDDEN);
+            }
+            else
+            {
+                lv_obj_add_flag(g_notif.bt_icon, LV_OBJ_FLAG_HIDDEN);
+            }
         }
 
-        if (g_notif.sd_icon && g_notif.icon_config.show_sdcard)
+        if (g_notif.sd_icon)
         {
-            lv_obj_clear_flag(g_notif.sd_icon, LV_OBJ_FLAG_HIDDEN);
-            lv_label_set_text(g_notif.sd_icon, g_notif.status.sdcard_mounted ? "SD" : "--");
+            if (g_notif.icon_config.show_sdcard)
+            {
+                lv_obj_clear_flag(g_notif.sd_icon, LV_OBJ_FLAG_HIDDEN);
+            }
+            else
+            {
+                lv_obj_add_flag(g_notif.sd_icon, LV_OBJ_FLAG_HIDDEN);
+            }
         }
 
-        if (g_notif.time_label && g_notif.icon_config.show_time)
+        if (g_notif.time_label)
         {
-            lv_obj_clear_flag(g_notif.time_label, LV_OBJ_FLAG_HIDDEN);
-            char time_text[8];
-            snprintf(time_text, sizeof(time_text), "%02d:%02d",
-                     g_notif.status.hour, g_notif.status.minute);
-            lv_label_set_text(g_notif.time_label, time_text);
+            if (g_notif.icon_config.show_time)
+            {
+                lv_obj_clear_flag(g_notif.time_label, LV_OBJ_FLAG_HIDDEN);
+            }
+            else
+            {
+                lv_obj_add_flag(g_notif.time_label, LV_OBJ_FLAG_HIDDEN);
+            }
         }
     }
 
@@ -255,15 +275,34 @@ uflake_result_t ugui_notification_init(void)
     lv_obj_align(g_notif.time_label, LV_ALIGN_RIGHT_MID, -5, 0);
 
     // Create app name label (centered, hidden by default)
+    // CRITICAL: Set max width to prevent text overflow and display corruption
     g_notif.app_name_label = lv_label_create(g_notif.container);
     lv_obj_set_style_text_color(g_notif.app_name_label, g_notif.theme.notification_fg, 0);
+
+    // Set size constraints BEFORE setting text
+    lv_obj_set_size(g_notif.app_name_label, 240, UGUI_NOTIFICATION_HEIGHT);
+
+    // Enable text clipping for long app names
+    lv_label_set_long_mode(g_notif.app_name_label, LV_LABEL_LONG_CLIP);
+
+    // Center text alignment using style
+    lv_obj_set_style_text_align(g_notif.app_name_label, LV_TEXT_ALIGN_CENTER, 0);
+
+    // Initialize with empty text
     lv_label_set_text(g_notif.app_name_label, "");
+
     lv_obj_align(g_notif.app_name_label, LV_ALIGN_CENTER, 0, 0);
     lv_obj_add_flag(g_notif.app_name_label, LV_OBJ_FLAG_HIDDEN);
 
     // Create loading label (centered, hidden by default)
     g_notif.loading_label = lv_label_create(g_notif.container);
     lv_obj_set_style_text_color(g_notif.loading_label, g_notif.theme.notification_fg, 0);
+
+    // Set same size constraints as app_name_label to prevent overflow
+    lv_obj_set_size(g_notif.loading_label, 240, UGUI_NOTIFICATION_HEIGHT);
+    lv_label_set_long_mode(g_notif.loading_label, LV_LABEL_LONG_CLIP);
+    lv_obj_set_style_text_align(g_notif.loading_label, LV_TEXT_ALIGN_CENTER, 0);
+
     lv_obj_align(g_notif.loading_label, LV_ALIGN_CENTER, 0, 0);
     lv_obj_add_flag(g_notif.loading_label, LV_OBJ_FLAG_HIDDEN);
 
@@ -371,7 +410,12 @@ uflake_result_t ugui_notification_update_status(const ugui_system_status_t *stat
     }
 
     g_notif.status = *status;
-    update_display();
+
+    // Skip redraw if showing app name (icons are hidden anyway)
+    if (!g_notif.showing_app_name)
+    {
+        update_display();
+    }
 
     return UFLAKE_OK;
 }
@@ -385,7 +429,12 @@ uflake_result_t ugui_notification_update_battery(uint8_t percent, bool charging)
 
     g_notif.status.battery_percent = percent > 100 ? 100 : percent;
     g_notif.status.charging = charging;
-    update_display();
+
+    // Skip redraw if showing app name (battery icon is hidden anyway)
+    if (!g_notif.showing_app_name)
+    {
+        update_display();
+    }
 
     return UFLAKE_OK;
 }
@@ -398,7 +447,12 @@ uflake_result_t ugui_notification_update_wifi(bool connected)
     }
 
     g_notif.status.wifi_connected = connected;
-    update_display();
+
+    // Skip redraw if showing app name (WiFi icon is hidden anyway)
+    if (!g_notif.showing_app_name)
+    {
+        update_display();
+    }
 
     return UFLAKE_OK;
 }
@@ -411,7 +465,12 @@ uflake_result_t ugui_notification_update_bluetooth(bool connected)
     }
 
     g_notif.status.bt_connected = connected;
-    update_display();
+
+    // Skip redraw if showing app name (BT icon is hidden anyway)
+    if (!g_notif.showing_app_name)
+    {
+        update_display();
+    }
 
     return UFLAKE_OK;
 }
@@ -424,7 +483,12 @@ uflake_result_t ugui_notification_update_sdcard(bool mounted)
     }
 
     g_notif.status.sdcard_mounted = mounted;
-    update_display();
+
+    // Skip redraw if showing app name (SD icon is hidden anyway)
+    if (!g_notif.showing_app_name)
+    {
+        update_display();
+    }
 
     return UFLAKE_OK;
 }
@@ -454,11 +518,14 @@ uflake_result_t ugui_notification_show_app_name(const char *app_name, uint32_t d
         return UFLAKE_ERROR;
     }
 
-    strncpy(g_notif.app_name, app_name, sizeof(g_notif.app_name) - 1);
-    g_notif.app_name[sizeof(g_notif.app_name) - 1] = '\0';
+    // Safely truncate app name if it exceeds buffer (leave room for null terminator)
+    size_t max_len = sizeof(g_notif.app_name) - 1;
+    strncpy(g_notif.app_name, app_name, max_len);
+    g_notif.app_name[max_len] = '\0';
 
     if (g_notif.app_name_label)
     {
+        // Set text using copy method (LVGL will manage the memory safely)
         lv_label_set_text(g_notif.app_name_label, g_notif.app_name);
     }
 

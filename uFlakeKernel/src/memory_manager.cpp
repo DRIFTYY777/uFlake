@@ -7,6 +7,7 @@
 
 static const char *TAG = "MEM_MGR";
 static SemaphoreHandle_t memory_mutex = NULL;
+
 static uflake_mem_stats_t mem_stats[3] = {
     {.total_size = 0, .free_size = 0, .used_size = 0, .largest_free_block = 0, .allocations = 0, .deallocations = 0},
     {.total_size = 0, .free_size = 0, .used_size = 0, .largest_free_block = 0, .allocations = 0, .deallocations = 0},

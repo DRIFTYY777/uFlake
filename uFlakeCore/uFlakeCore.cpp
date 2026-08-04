@@ -20,7 +20,7 @@
 #include "sdCard.h"
 #include "uBootScreen.h"
 
-#include "uGUI.h"
+#include "uGui_simple.h" // NEW: Updated to use new GUI system
 
 static const char *TAG = "UFLAKE_CORE";
 
@@ -114,7 +114,6 @@ void uflake_core_init(void)
     // Start the kernel
     uflake_kernel_start();
 
-    // initialize nvs subsystem
     unvs_init();
 
     // initialize I2C
@@ -129,16 +128,13 @@ void uflake_core_init(void)
 
     // Show splash immediately
     uboot_screen_start(&display);
-    vTaskDelay(pdMS_TO_TICKS(6000)); // Show for 6 seconds
+    vTaskDelay(pdMS_TO_TICKS(1000)); // Show for 6 seconds
     uboot_screen_stop();
 
     config_and_init_nrf24();
     config_and_init_sd_card();
 
-    // uGui_init(&display);
-
-    uGui_init(&display);
-    // frontend_init();
+    uGui_init();
 
     register_builtin_apps();
 

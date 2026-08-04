@@ -56,11 +56,25 @@ extern "C"
     void uGui_clear_app_content(void);
 
     /**
-     * @brief Helper to add object to group and make it focusable
+     * @brief Add object to group for keyboard navigation
      *
      * @param obj Object to add to group
      */
     void uGui_add_to_group(lv_obj_t *obj);
+
+    /**
+     * @brief Auto-focus a specific UI object
+     * 
+     * Call this after creating UI to focus a specific object (typically the first button).
+     * Uses deferred execution via lv_async_call() to ensure LVGL is in stable state
+     * before attempting focus operations.
+     * 
+     * This fixes the "first button not focused" issue where manual lv_group_focus_obj()
+     * calls fail because the group isn't fully initialized yet.
+     * 
+     * @param obj The object to focus (pass the first button reference)
+     */
+    void uGui_auto_focus_object(lv_obj_t *obj);
 
     // ============================================================================
     // APP LOADER INTEGRATION

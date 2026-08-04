@@ -116,7 +116,7 @@ uflake_result_t app_lifecycle_launch(app_descriptor_t *app,
     }
 
     // If launching a non-launcher app, pause the launcher
-    if (!app->is_launcher && launcher_id != 0 && launcher_id != app->app_id)
+    if (!app->is_launcher && launcher_id != 0 && launcher_id != app->app_id) 
     {
         app_descriptor_t *launcher = app_loader_find_app_by_id(launcher_id);
         if (launcher && launcher->state == APP_STATE_RUNNING)

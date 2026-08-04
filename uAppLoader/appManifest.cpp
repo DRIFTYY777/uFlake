@@ -247,6 +247,8 @@ void app_manifest_create_default(app_manifest_t *manifest,
     manifest->requires_gui = true;
     manifest->requires_sdcard = false;
     manifest->requires_network = false;
+    manifest->subtype = APP_SUBTYPE_GUI_NATIVE;  // NEW: Default to native GUI
+    manifest->min_ram_bytes = 0;                 // NEW: No minimum specified
 }
 
 void app_manifest_print(const app_manifest_t *manifest)

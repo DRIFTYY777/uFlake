@@ -1,5 +1,5 @@
 /**
- * @file launcher.cpp
+ * @file launcher.c
  * @brief Launcher Application - Home screen and app list
  *
  * The launcher is a GUI app that displays all registered apps.
@@ -11,9 +11,10 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "appLoader.h"
-#include "uGui.h"
+#include "appLoader_simple.h"
+#include "uGui_simple.h"
 #include "lvgl.h"
+#include "esp_log.h"
 
 static const char *TAG = "Launcher";
 
@@ -27,19 +28,20 @@ static const app_manifest_t launcher_manifest = {
     .author = "DRIFTYY",
     .description = "Home screen and app launcher",
     .icon = "home.png",
-    .type = APP_TYPE_LAUNCHER,
+    .category = APP_CAT_SYSTEM,
+    .subtype = APP_SUBTYPE_GUI,
     .stack_size = 8192,
-    .priority = 10,
-    .requires_gui = true,
+    .priority = PROCESS_PRIORITY_NORMAL,
     .requires_sdcard = false,
-    .requires_network = false};
+    .requires_network = false,
+    .min_ram_bytes = 16384};
 
 // Forward declare entry point
 void launcher_app_main(void);
 
-// Export app bundle for registration (single line registration in main.cpp)
+// Export app bundle for registration
 const app_bundle_t launcher_app = {
-    .manifest = &launcher_manifest,
+    .manifest = launcher_manifest,
     .entry_point = launcher_app_main,
     .is_launcher = true};
 
@@ -48,38 +50,72 @@ const app_bundle_t launcher_app = {
 // ============================================================================
 
 static lv_obj_t *app_list = NULL;
+static uint32_t selected_app_id = 0;
 
 // ============================================================================
-// EVENT HANDLERS
+// INPUT HANDLER
 // ============================================================================
 
-static void app_btn_click_cb(lv_event_t *e)
+static void launcher_input_handler(ugui_button_t btn, bool pressed, void *userdata)
+{
+    if (!pressed)
+        return; // Only handle press events
+
+    (void)userdata;
+
+    switch (btn)
+    {
+    case UGUI_BTN_OK:
+        if (selected_app_id != 0)
+        {
+            ESP_LOGI(TAG, "Launching app ID: %lu", selected_app_id);
+            app_loader_launch_app(selected_app_id);
+        }
+        break;
+
+    case UGUI_BTN_DOWN:
+        // TODO: Handle navigation down
+        break;
+
+    case UGUI_BTN_UP:
+        // TODO: Handle navigation up
+        break;
+
+    default:
+        break;
+    }
+}
+
+// LVGL click handler
+static void app_btn_click_handler(lv_event_t *e)
 {
     lv_event_code_t code = lv_event_get_code(e);
     if (code != LV_EVENT_CLICKED)
         return;
 
-    // Get app_id stored in user data
     uint32_t app_id = (uint32_t)(uintptr_t)lv_event_get_user_data(e);
+    selected_app_id = app_id;
 
-    UFLAKE_LOGI(TAG, "Launching app ID: %lu", app_id);
-    app_loader_launch(app_id);
+    ESP_LOGI(TAG, "App button clicked: %lu", app_id);
+    if (app_id != 0)
+    {
+        app_loader_launch_app(app_id);
+    }
 }
 
 // ============================================================================
 // UI CREATION
 // ============================================================================
 
-static void create_launcher_ui(void)
+static void create_launcher_ui(lv_obj_t *parent)
 {
-    lv_obj_t *parent = uGui_get_content_container();
     if (parent == NULL)
     {
-        UFLAKE_LOGE(TAG, "No content container");
+        ESP_LOGE(TAG, "No content container");
         return;
     }
 
-    UFLAKE_LOGI(TAG, "Content container: %p", (void *)parent);
+    ESP_LOGI(TAG, "Content container: %p", (void *)parent);
 
     // Create main container
     lv_obj_t *cont = lv_obj_create(parent);
@@ -106,18 +142,17 @@ static void create_launcher_ui(void)
     lv_obj_set_style_pad_all(app_list, 5, 0);
 
     // Get apps from loader
-    app_descriptor_t *apps = NULL;
     uint32_t app_count = 0;
-
-    if (app_loader_get_apps(&apps, &app_count) != UFLAKE_OK)
+    app_descriptor_t *apps = app_loader_get_app_list(&app_count);
+    if (apps == NULL || app_count == 0)
     {
-        UFLAKE_LOGE(TAG, "Failed to get app list");
+        ESP_LOGE(TAG, "Failed to get app list");
         lv_obj_t *err_label = lv_label_create(app_list);
-        lv_label_set_text(err_label, "Error loading apps");
+        lv_label_set_text(err_label, "No apps found");
         return;
     }
 
-    UFLAKE_LOGI(TAG, "Found %lu apps", app_count);
+    ESP_LOGI(TAG, "Found %lu apps", app_count);
 
     // Add each app as a list button
     lv_obj_t *first_btn = NULL;
@@ -128,15 +163,15 @@ static void create_launcher_ui(void)
         if (apps[i].is_launcher)
             continue;
 
-        // Skip services (background only)
-        if (apps[i].manifest.type == APP_TYPE_SERVICE)
+        // Skip non-GUI apps
+        if (apps[i].manifest.subtype != APP_SUBTYPE_GUI)
             continue;
 
-        UFLAKE_LOGI(TAG, "Adding app: %s", apps[i].manifest.name);
+        ESP_LOGI(TAG, "Adding app: %s", apps[i].manifest.name);
 
         // Create list button
         lv_obj_t *btn = lv_list_add_btn(app_list, NULL, apps[i].manifest.name);
-        lv_obj_add_event_cb(btn, app_btn_click_cb, LV_EVENT_CLICKED,
+        lv_obj_add_event_cb(btn, app_btn_click_handler, LV_EVENT_CLICKED,
                             (void *)(uintptr_t)apps[i].app_id);
 
         // Style the button
@@ -144,25 +179,18 @@ static void create_launcher_ui(void)
         lv_obj_set_style_bg_color(btn, lv_color_hex(0x666666), LV_STATE_FOCUSED);
         lv_obj_set_style_text_color(btn, lv_color_white(), 0);
 
-        // Add to group for navigation
-        uGui_add_to_group(btn);
-
         if (first_btn == NULL)
             first_btn = btn;
 
         btn_count++;
     }
 
-    UFLAKE_LOGI(TAG, "Created %d app buttons", btn_count);
+    ESP_LOGI(TAG, "Created %d app buttons", btn_count);
 
-    // Focus first app
-    if (first_btn != NULL)
-    {
-        lv_group_focus_obj(first_btn);
-    }
-    else
+    if (first_btn == NULL)
     {
         // No apps - show message
+        ESP_LOGI(TAG, "No GUI apps found");
         lv_obj_t *empty_label = lv_label_create(app_list);
         lv_label_set_text(empty_label, "No apps installed");
         lv_obj_set_style_text_color(empty_label, lv_color_hex(0x888888), 0);
@@ -175,18 +203,26 @@ static void create_launcher_ui(void)
 
 void launcher_app_main(void)
 {
-    UFLAKE_LOGI(TAG, "Launcher Started");
+    ESP_LOGI(TAG, "Launcher Started");
 
-    // Register ourselves as the launcher with uGui
-    // This way when apps exit, uGui calls our entry point again
-    uGui_set_launcher(launcher_app_main);
-    UFLAKE_LOGI(TAG, "Registered as launcher");
+    // Get container from GUI system
+    lv_obj_t *container = uGui_get_content_container();
+    if (container == NULL)
+    {
+        ESP_LOGE(TAG, "Failed to get content container");
+        return;
+    }
+
+    // Register input handler for this app
+    uGui_register_input_handler(UGUI_BTN_OK, launcher_input_handler, NULL);
+    uGui_register_input_handler(UGUI_BTN_UP, launcher_input_handler, NULL);
+    uGui_register_input_handler(UGUI_BTN_DOWN, launcher_input_handler, NULL);
 
     // Create the UI
-    create_launcher_ui();
+    create_launcher_ui(container);
 
-    UFLAKE_LOGI(TAG, "Launcher UI created");
-    // No loop needed - LVGL handles input events
-    // When an app is launched, this function's UI is cleared
-    // When app exits, launcher_app_main() is called again
+    ESP_LOGI(TAG, "Launcher UI created");
+    // No loop needed - LVGL handles events in GUI task
+    // When an app is launched, this app is unloaded
+    // When other apps exit, launcher_app_main() is called again
 }

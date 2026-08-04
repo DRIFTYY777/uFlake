@@ -13,6 +13,8 @@
 #include "appManifest.h"
 #include "appService.h"
 #include "app_force_exit.h"
+#include "app_context.h"
+#include "memory_aware_launcher.h"
 #include "esp_timer.h"
 #include <string.h>
 
@@ -32,6 +34,9 @@ static uint32_t launcher_app_id = 0;
 // Force exit tracking
 static bool force_exit_buttons_pressed = false;
 static uint64_t force_exit_press_time = 0;
+
+// Memory management callbacks
+static app_loader_mem_pressure_cb_t mem_pressure_callback = NULL;
 
 // ============================================================================
 // PRIVATE HELPERS (exposed to submodules)
@@ -85,6 +90,22 @@ uflake_result_t app_loader_init(void)
     if (result != UFLAKE_OK)
     {
         UFLAKE_LOGE(TAG, "Failed to initialize service manager");
+        return result;
+    }
+
+    // Initialize app context manager (NEW)
+    result = app_context_manager_init(MAX_APPS);
+    if (result != UFLAKE_OK)
+    {
+        UFLAKE_LOGE(TAG, "Failed to initialize context manager");
+        return result;
+    }
+
+    // Initialize memory-aware launcher (NEW)
+    result = mem_launcher_init(NULL); // NULL = use defaults
+    if (result != UFLAKE_OK)
+    {
+        UFLAKE_LOGE(TAG, "Failed to initialize memory launcher");
         return result;
     }
 
@@ -262,10 +283,38 @@ uflake_result_t app_loader_resume(uint32_t app_id)
     return result;
 }
 
+/**
+ * @brief Launch an app with memory checks (NEW - memory-aware)
+ * Checks free RAM before launch and can pause other apps if needed
+ */
+uflake_result_t app_loader_launch_with_memory_check(uint32_t app_id, uint32_t min_free_ram)
+{
+    if (!initialized)
+        return UFLAKE_ERROR;
+
+    app_descriptor_t *app = app_loader_get_app(app_id);
+    if (!app)
+        return UFLAKE_ERROR_NOT_FOUND;
+
+    // Use provided minimum or manifest default
+    uint32_t required_ram = (min_free_ram > 0) ? min_free_ram : app->manifest.min_ram_bytes;
+
+    // Check if sufficient RAM
+    uint32_t free_ram = mem_launcher_get_free_ram();
+    if (free_ram < required_ram)
+    {
+        UFLAKE_LOGE(TAG, "Insufficient RAM for app %u: need %u, have %u",
+                   app_id, required_ram, free_ram);
+        return UFLAKE_ERROR_MEMORY;
+    }
+
+    // Launch normally
+    return app_loader_launch(app_id);
+}
+
 // ============================================================================
 // APP QUERY
 // ============================================================================
-
 uflake_result_t app_loader_get_apps(app_descriptor_t **apps, uint32_t *count)
 {
     if (!initialized || !apps || !count)
@@ -360,4 +409,37 @@ void app_loader_check_force_exit(bool right_pressed, bool back_pressed)
             }
         }
     }
+}
+
+// ============================================================================
+// MEMORY MANAGEMENT (NEW)
+// ============================================================================
+
+uint32_t app_loader_get_free_ram(void)
+{
+    return mem_launcher_get_free_ram();
+}
+
+mem_pressure_level_t app_loader_get_memory_pressure(void)
+{
+    return mem_launcher_get_pressure();
+}
+
+void app_loader_register_memory_callback(app_loader_mem_pressure_cb_t callback)
+{
+    uflake_mutex_lock(app_loader_mutex, 100);
+    mem_pressure_callback = callback;
+    uflake_mutex_unlock(app_loader_mutex);
+
+    // Also register with memory launcher
+    mem_launcher_register_callback(callback);
+}
+
+uint32_t app_loader_get_context_handle(uint32_t app_id)
+{
+    app_descriptor_t *app = app_loader_get_app(app_id);
+    if (app == NULL)
+        return 0;
+
+    return app->context_handle;
 }

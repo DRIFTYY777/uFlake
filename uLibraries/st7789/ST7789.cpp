@@ -22,7 +22,7 @@ bool ST7789_init(st7789_driver_t *driver)
     UFLAKE_LOGI(TAG, "Initializing ST7789 display...");
 
     // Allocate buffer memory using uFlake kernel memory manager
-    driver->buffer = (st7789_color_t *)uflake_malloc(driver->buffer_size * 2 * sizeof(st7789_color_t), UFLAKE_MEM_DMA);
+    driver->buffer = (st7789_color_t *)uflake_malloc(driver->buffer_size * 2 * sizeof(st7789_color_t), UFLAKE_MEM_INTERNAL);
     if (driver->buffer == NULL)
     {
         UFLAKE_LOGE(TAG, "Display buffer allocation fail");

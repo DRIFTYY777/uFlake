@@ -1,18 +1,14 @@
 /**
- * @file settings_app.cpp
- * @brief Settings Application - Example GUI app using uGui
- *
- * This demonstrates how to create a GUI app for uFlake:
- * - GUI apps don't need a main loop (LVGL handles events)
- * - Just set up UI elements and event handlers
- * - App exits when user presses ESC (handled by uGui)
+ * @file settings_app.c
+ * @brief Settings Application - System settings and configuration
  */
 
 #include <stdio.h>
 #include <string.h>
-#include "appLoader.h"
-#include "uGui.h"
+#include "appLoader_simple.h"
+#include "uGui_simple.h"
 #include "lvgl.h"
+#include "esp_log.h"
 
 static const char *TAG = "SettingsApp";
 
@@ -25,21 +21,24 @@ static const app_manifest_t settings_manifest = {
     .author = "uFlake",
     .description = "System settings and configuration",
     .icon = "settings.png",
-    .type = APP_TYPE_INTERNAL,
+    .category = APP_CAT_SYSTEM,
+    .subtype = APP_SUBTYPE_GUI,
     .stack_size = 4096,
-    .priority = 5,
-    .requires_gui = true,
+    .priority = PROCESS_PRIORITY_NORMAL,
     .requires_sdcard = false,
-    .requires_network = false};
+    .requires_network = false,
+    .min_ram_bytes = 8192
+};
 
 // Forward declare entry point
 void settings_app_main(void);
 
 // Export app bundle for registration
 const app_bundle_t settings_app = {
-    .manifest = &settings_manifest,
+    .manifest = settings_manifest,
     .entry_point = settings_app_main,
-    .is_launcher = false};
+    .is_launcher = false
+};
 
 // ============================================================================
 // UI EVENT HANDLERS
@@ -49,8 +48,7 @@ static void brightness_slider_cb(lv_event_t *e)
 {
     lv_obj_t *slider = (lv_obj_t *)lv_event_get_target(e);
     int32_t value = lv_slider_get_value(slider);
-    UFLAKE_LOGI(TAG, "Brightness: %ld%%", value);
-    // TODO: Apply brightness setting
+    ESP_LOGI(TAG, "Brightness: %ld%%", value);
 }
 
 static void theme_btn_cb(lv_event_t *e)
@@ -58,8 +56,7 @@ static void theme_btn_cb(lv_event_t *e)
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_CLICKED)
     {
-        UFLAKE_LOGI(TAG, "Theme toggle clicked");
-        // TODO: Toggle theme
+        ESP_LOGI(TAG, "Theme toggle clicked");
     }
 }
 
@@ -67,8 +64,29 @@ static void wifi_switch_cb(lv_event_t *e)
 {
     lv_obj_t *sw = (lv_obj_t *)lv_event_get_target(e);
     bool state = lv_obj_has_state(sw, LV_STATE_CHECKED);
-    UFLAKE_LOGI(TAG, "WiFi: %s", state ? "ON" : "OFF");
-    // TODO: Toggle WiFi
+    ESP_LOGI(TAG, "WiFi: %s", state ? "ON" : "OFF");
+}
+
+// ============================================================================
+// INPUT HANDLER
+// ============================================================================
+
+static void settings_input_handler(ugui_button_t btn, bool pressed, void *userdata)
+{
+    if (!pressed)
+        return;
+
+    (void)userdata;
+
+    switch (btn)
+    {
+    case UGUI_BTN_BACK:
+        uGui_exit_app();
+        break;
+
+    default:
+        break;
+    }
 }
 
 // ============================================================================
@@ -77,15 +95,18 @@ static void wifi_switch_cb(lv_event_t *e)
 
 void settings_app_main(void)
 {
-    UFLAKE_LOGI(TAG, "Settings App Started");
+    ESP_LOGI(TAG, "Settings App Started");
 
     // Get the content container from uGui
     lv_obj_t *parent = uGui_get_content_container();
     if (parent == NULL)
     {
-        UFLAKE_LOGE(TAG, "Failed to get content container");
+        ESP_LOGE(TAG, "Failed to get content container");
         return;
     }
+
+    // Register input handler
+    uGui_register_input_handler(UGUI_BTN_BACK, settings_input_handler, NULL);
 
     // Create main container with vertical scroll
     lv_obj_t *cont = lv_obj_create(parent);
@@ -134,13 +155,11 @@ void settings_app_main(void)
     lv_obj_set_width(slider, 120);
     lv_slider_set_value(slider, 75, LV_ANIM_OFF);
     lv_obj_add_event_cb(slider, brightness_slider_cb, LV_EVENT_VALUE_CHANGED, NULL);
-    uGui_add_to_group(slider);
 
     // Theme toggle button
     lv_obj_t *theme_btn = lv_btn_create(display_section);
     lv_obj_set_size(theme_btn, lv_pct(100), 35);
     lv_obj_add_event_cb(theme_btn, theme_btn_cb, LV_EVENT_CLICKED, NULL);
-    uGui_add_to_group(theme_btn);
 
     lv_obj_t *theme_btn_label = lv_label_create(theme_btn);
     lv_label_set_text(theme_btn_label, "Toggle Dark/Light Theme");
@@ -174,7 +193,6 @@ void settings_app_main(void)
 
     lv_obj_t *wifi_sw = lv_switch_create(wifi_row);
     lv_obj_add_event_cb(wifi_sw, wifi_switch_cb, LV_EVENT_VALUE_CHANGED, NULL);
-    uGui_add_to_group(wifi_sw);
 
     // --- About Section ---
     lv_obj_t *about_section = lv_obj_create(cont);
@@ -197,10 +215,5 @@ void settings_app_main(void)
     lv_label_set_text(hw_label, "ESP32-S3 @ 240MHz");
     lv_obj_set_style_text_color(hw_label, lv_color_hex(0x888888), 0);
 
-    // Focus first interactive element
-    lv_group_focus_obj(slider);
-
-    UFLAKE_LOGI(TAG, "Settings UI created - press ESC to exit");
-    // No loop needed - LVGL handles everything
-    // App stays "running" until user presses ESC
+    ESP_LOGI(TAG, "Settings UI created - press BACK to exit");
 }

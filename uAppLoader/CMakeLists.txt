@@ -1,24 +1,23 @@
 idf_component_register(
     SRCS 
-        "appLoader.cpp"
-        "appLifecycle.cpp"
-        "appService.cpp"
-        "appManifest.cpp"
-        "app_force_exit.cpp"
+        "appLoader_simple.cpp"
     
     INCLUDE_DIRS 
         "."
     
     REQUIRES 
-        uFlakeKernel
-        uFlakeHAL
+        freertos
+        esp_common
+        uFlakeCore
         uGraphics
-        nvs_flash
 )
 
-# Set compiler flags
+# Compiler flags
 target_compile_options(${COMPONENT_LIB} PRIVATE
     -Wall
     -Wextra
+    -Werror=return-type
     -Wno-unused-parameter
+    -Wno-sign-compare
+    -O2
 )
