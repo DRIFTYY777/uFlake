@@ -22,6 +22,8 @@
 
 #include "uGui_simple.h" // NEW: Updated to use new GUI system
 
+#include "esp_elf.h"
+
 static const char *TAG = "UFLAKE_CORE";
 
 static st7789_driver_t display;
@@ -105,6 +107,78 @@ void config_and_init_nrf24()
 }
 
 #include "input.h"
+
+// ============== ELF Loading & Execution ==============
+typedef int (*app_entry_t)(int argc, char *argv[]);
+
+static int load_and_run_elf(const char *elf_path, int argc, char *argv[])
+{
+    ESP_LOGI(TAG, "Loading ELF from: %s", elf_path);
+
+    // Load ELF file
+    elf_img_handle_t handle = elf_loader_load(elf_path);
+    if (handle == NULL)
+    {
+        ESP_LOGE(TAG, "Failed to load ELF: %s", elf_path);
+        return -1;
+    }
+
+    ESP_LOGI(TAG, "ELF loaded successfully");
+
+    // Get entry point
+    uint32_t entry_point = elf_loader_get_entry_point(handle);
+    ESP_LOGI(TAG, "Entry point: 0x%08x", entry_point);
+
+    // Get symbol (if entry point is not direct)
+    // Example: Look for "app_main" symbol
+    uint32_t app_main_addr = elf_loader_get_symbol(handle, "app_main");
+    if (app_main_addr != 0)
+    {
+        ESP_LOGI(TAG, "Found app_main at: 0x%08x", app_main_addr);
+        entry_point = app_main_addr;
+    }
+
+    // Cast to function pointer
+    app_entry_t entry_fn = (app_entry_t)entry_point;
+
+    // Execute the loaded app
+    ESP_LOGI(TAG, "Executing loaded app...");
+    int result = entry_fn(argc, argv);
+
+    ESP_LOGI(TAG, "App returned: %d", result);
+
+    // Cleanup
+    elf_loader_unload(handle);
+
+    return result;
+}
+
+// ============== Main Task ==============
+static void elf_loader_task(void *pvParameters)
+{
+    ESP_LOGI(TAG, "ELF Loader Task Started");
+
+    // Initialize SD card
+    if (init_sdcard() != ESP_OK)
+    {
+        ESP_LOGE(TAG, "SD card initialization failed");
+        vTaskDelete(NULL);
+    }
+
+    // Prepare arguments for the ELF app
+    const char *elf_path = MOUNT_POINT "/elf_app.elf";
+    char *argv[] = {
+        "elf_app",
+        "arg1",
+        "arg2",
+        NULL};
+    int argc = 3;
+
+    // Load and run the ELF app
+    load_and_run_elf(elf_path, argc, argv);
+
+    vTaskDelete(NULL);
+}
 
 void uflake_core_init(void)
 {

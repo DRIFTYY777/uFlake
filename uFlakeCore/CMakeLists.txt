@@ -44,6 +44,7 @@ idf_component_register(
         uServices
         uBootScreen
         lvgl__lvgl
+        espressif__elf_loader
 
         ${APP_COMPONENTS}
         
