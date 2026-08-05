@@ -108,76 +108,67 @@ void config_and_init_nrf24()
 
 #include "input.h"
 
-// ============== ELF Loading & Execution ==============
-typedef int (*app_entry_t)(int argc, char *argv[]);
-
-static int load_and_run_elf(const char *elf_path, int argc, char *argv[])
+elf_file_t *load_elf_from_sd(const char *filename)
 {
-    ESP_LOGI(TAG, "Loading ELF from: %s", elf_path);
-
-    // Load ELF file
-    elf_img_handle_t handle = elf_loader_load(elf_path);
-    if (handle == NULL)
+    elf_file_t *file = (elf_file_t *)malloc(sizeof(elf_file_t));
+    if (!file)
     {
-        ESP_LOGE(TAG, "Failed to load ELF: %s", elf_path);
-        return -1;
+        UFLAKE_LOGE(TAG, "Failed to allocate memory for elf_file_t");
+        return NULL;
     }
 
-    ESP_LOGI(TAG, "ELF loaded successfully");
-
-    // Get entry point
-    uint32_t entry_point = elf_loader_get_entry_point(handle);
-    ESP_LOGI(TAG, "Entry point: 0x%08x", entry_point);
-
-    // Get symbol (if entry point is not direct)
-    // Example: Look for "app_main" symbol
-    uint32_t app_main_addr = elf_loader_get_symbol(handle, "app_main");
-    if (app_main_addr != 0)
+    int ret = esp_elf_open(file, filename);
+    if (ret != 0)
     {
-        ESP_LOGI(TAG, "Found app_main at: 0x%08x", app_main_addr);
-        entry_point = app_main_addr;
+        UFLAKE_LOGE(TAG, "Failed to open ELF file: %s", filename);
+        free(file);
+        return NULL;
     }
 
-    // Cast to function pointer
-    app_entry_t entry_fn = (app_entry_t)entry_point;
-
-    // Execute the loaded app
-    ESP_LOGI(TAG, "Executing loaded app...");
-    int result = entry_fn(argc, argv);
-
-    ESP_LOGI(TAG, "App returned: %d", result);
-
-    // Cleanup
-    elf_loader_unload(handle);
-
-    return result;
+    UFLAKE_LOGI(TAG, "ELF file loaded successfully: %s", filename);
+    return file;
 }
 
-// ============== Main Task ==============
-static void elf_loader_task(void *pvParameters)
+void run_elf(elf_file_t *file)
 {
-    ESP_LOGI(TAG, "ELF Loader Task Started");
-
-    // Initialize SD card
-    if (init_sdcard() != ESP_OK)
+    if (!file || !file->payload || file->size == 0)
     {
-        ESP_LOGE(TAG, "SD card initialization failed");
-        vTaskDelete(NULL);
+        UFLAKE_LOGE(TAG, "Invalid ELF file");
+        return;
     }
 
-    // Prepare arguments for the ELF app
-    const char *elf_path = MOUNT_POINT "/elf_app.elf";
-    char *argv[] = {
-        "elf_app",
-        "arg1",
-        "arg2",
-        NULL};
-    int argc = 3;
+    esp_elf_t elf;
+    int ret = esp_elf_init(&elf);
+    if (ret != ESP_OK)
+    {
+        UFLAKE_LOGE(TAG, "Failed to initialize ELF object");
+        return;
+    }
 
-    // Load and run the ELF app
-    load_and_run_elf(elf_path, argc, argv);
+    ret = esp_elf_relocate(&elf, file->payload);
+    if (ret != ESP_OK)
+    {
+        UFLAKE_LOGE(TAG, "Failed to relocate ELF data");
+        esp_elf_deinit(&elf);
+        return;
+    }
 
-    vTaskDelete(NULL);
+    // Prepare arguments for the ELF application
+    const char *argv[] = {"app", NULL};
+    int argc = 1;
+
+    ret = esp_elf_request(&elf, 0, argc, (char **)argv);
+    if (ret != ESP_OK)
+    {
+        UFLAKE_LOGE(TAG, "Failed to request ELF execution");
+        esp_elf_deinit(&elf);
+        return;
+    }
+
+    UFLAKE_LOGI(TAG, "ELF application started successfully");
+
+    // Clean up
+    esp_elf_deinit(&elf);
 }
 
 void uflake_core_init(void)
@@ -211,6 +202,17 @@ void uflake_core_init(void)
     uGui_init();
 
     register_builtin_apps();
+
+    // execut the hello.elf from sd card
+    elf_file_t *elf_file = load_elf_from_sd("sd/hello.app.elf");
+    if (elf_file)
+    {
+        run_elf(elf_file);
+        esp_elf_close(elf_file);
+        free(elf_file);
+    }
+    else
+        UFLAKE_LOGE(TAG, "Failed to load hello.app.elf from SD card");
 
     UFLAKE_LOGI(TAG, "uFlake Core initialized successfully");
 }
